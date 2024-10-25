@@ -3,13 +3,14 @@
 
 module Lib where
 
-import Data.Set (Set)
+import Data.Set (Set, cartesianProduct, union)
 
 -- TODOs
 -- Maybe start more top down instead so look at later pages and try to implement backwards.
 -- I did the other approach and it was a bit harder to follow.
 -- Maybe starting at preemptive shield which uses MDPs which then appl6y a shield to the actions (removing unsafe actions might make more sense)
 -- OR do safety games but that's used in the above. If I struggle with the above I'll try this.
+-- Section 6 contains main stuff I think I understand mostly everything up until then
 
 
 -- | Credits to TODO
@@ -18,15 +19,16 @@ import Data.Set (Set)
 -- | Unicode characters
 -- You can setup latex input mode in emacs to use these
 -- φ \varphi Specification
--- φˢ Safety automation
--- φᵐ MDP abstraction
+-- φˢ \varphi^s Safety automation
+-- φᵐ \varphi^m MDP abstraction
 -- Σ \Sigma Alphabet sometimes composed of the input and output alphabet Σ = Σᵢ x Σₒ
 -- Σᵢ \Sigma_i Input alphabet
 -- Σₒ \Sigma_o Output alphabet
 -- δ \delta Transition function
 -- ρ \rho
 -- λ \lambda Output function
--- Gω G\omega Really G with a supper script omega
+-- ω \omega
+-- Gω G\omega Really G with a super script ω (omega)
 -- Many of these are described in section 3 Preliminaries
 
 -- | MDP States
@@ -40,7 +42,6 @@ type P = (S, A) -> Set (S, Float)
 
 -- | Reward funtion
 type R = (S, A, S) -> Float
-
 
 -- | Markov Decision Process
 -- I wonder if we even need this given they start talking about an abstraction over the MDP φ
@@ -72,31 +73,40 @@ data S _Σᵢ¹ _Σᵢ² _Σ₀ = S {
   , δ :: (Q, _Σᵢ) → _Σᵢ
   -- Complete output function
   , λ :: (Q, _Σᵢ) → _Σ₀
-  }
-
-
+}
 
 -- Safety automation φˢ
 -- The System S satisfies the automation if the run of S only visits safe states in F
 data SafetyAutomation _Σᵢ¹ _Σᵢ² = SafetyAutomation {
-  q :: Set Q -- States
+  _Q :: Set Q -- States
   , q₀:: Q
   , _Σ :: _Σ
   , δ :: (Q, (_Σᵢ¹, _Σᵢ²)) -> Q
   , _F :: Set Q -- Set of safe states where F ⊆ Q
   }
 
+-- | MDP Abstraction φᵐ
+-- Which is some abstraction over the MDP
+-- The confusing part is that they state the abstraction is also a Safety word automation so like SafetyAutomation φˢ?
+-- Maybe that's fine it's just an automata but can we assume we know the safe states F? Perhaps I guess?
+data MDPAbstraction = MDPAbstraction {
+  _Q :: Set Q
+  , q₀ :: Q
+  , _Σ :: _Σ
+  , δ :: (Q, _Σ) -> Q
+  , _F :: Set Q
+}
+
 
 -- | 2 player Game
--- G: TODO  Game states guessing that's a product of states from the environment and safety automation?
-data Game G = Game {
-    _G :: Set G -- Finite set of game states
-    , q₀ :: G -- Initial state
-    , δ :: (G, Σᵢ, Σₒ) -> G -- Transition function
-    , win :: Gω
-
-  
-                 }
+data Game _G = Game {
+    _G :: Set _G -- Finite set of game states
+    , g₀ :: _G -- Initial state
+    , _Σᵢ :: _Σᵢ -- Input alphabet
+    , _Σₒ :: _Σₒ -- Output alphabet
+    , δ :: (_G, Σᵢ, Σₒ) -> _G -- Transition function
+    , win :: _Gω
+}
 
 -- | Used for synthesizing the shield
 -- Defines a set Fᵍ  ⊆ G of safe states
@@ -115,7 +125,8 @@ safetyGame=
         δ' = undefined -- (g, σᵢ ) = (g, σᵢ, ρ(g, σᵢ))
         ρ = undefined
     in undefined -- TODO S q _Σᵢ _Σₒ δ'
-  -- | Uses the safety game to synthesize a shield which implements the winning strategy in a new reactive system (Is it a finite reactive system?)
+
+-- | Uses the safety game to synthesize a shield which implements the winning strategy in a new reactive system (Is it a finite reactive system?)
 -- shield  ∷ Shield _Σᵢ _Σ₀
 -- shield =
 --     let g = undefined
@@ -218,7 +229,48 @@ preemptiveShield _M _S =
   in M _S' M.s_i  _A' _P' _R'
 
 -- | Section 6 a shield is computed from an abstraction of the MDP φᵐ and the safety automaton φˢ
-computeShield
+-- 1. Translate φˢ and φᵐ into a safety game
+
+computeShield :: SafetyGame -> MDPAbstraction -> S
+computeShield φˢ φᵐ =
+  -- 1. Translate φˢ and φᵐ into a safety game
+  -- TODO this is similar to shieldpy
+
+  -- The MDP abstraction's Σᵢ = A x L
+  let _A = fst <$> φᵐ._Σᵢ -- Actions
+      _L = snd <$> φᵐ._Σᵢ -- Labels
+      _G = Set.cartesianProduct φˢ._Q φᵐ._Q -- A product of both automata's states
+      _G' = SafetyGame {
+            _G = φˢ._Q `cartesianProduct` φᵐ._Q
+            , q₀ = (φˢ.q₀, φᵐ.q₀)
+            , Σᵢ = _L
+           ,  Σₒ = _A
+           -- Paper might be missing a qₘ I think
+           -- I wonder if I should use tuples instead of functions like in python
+           -- Not sure what is better when I start using an SMT solver
+           , δ = ((q, qₘ), l :: L, a :: A) -> (φˢ.δ q (l, a), φᵐ.δ qₘ, (l, a))
+           , Fᵍ = (φˢ._F `cartesianProduct` φᵐ.Q) `union` (φˢ.Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
+          }
+-- 2. Compute the winning strategy TODO this is described in Shield Synthesis but I think we can use SMT for this part
+    _W = undefined
+-- 3. For pre-emptive shielding translate G and W into a reactive system
+    in Shield {
+      _Q = _G
+      , q₀ = _G'.q₀
+      , _Σᵢ = φᵐ._Σᵢ -- A x L which we can get from the MDP abstraction
+      -- 2ᴬ so I think it's a powerset? Might make sense because it's going to suggest a set of safe actions
+      -- Or it's a mapping of Action to {0, 1} where 0 is unsafe and 1 is safe?
+      , _Σₒ = powerset _A
+      , δ = (g, l, a) -> _G'.δ (g, l, a)
+      , λ = (g, l, a) -> if g ∈ _W  -- TODO yeah actually make it  a tuple or Maybe
+    }
+
+
+-- Optionally remove states that are not reachable from the initial state
+prune :: S -> S
+prune s = s -- TODO
+
+
 
 -- Label set e.g. {level < 1, 1 ≤ level ≤ 99, level > 99}
 type L = Set Prop
@@ -230,3 +282,13 @@ watertankL = Set.fromList ["level < 1", "1 ≤ level ≤ 99", "level > 99"]
 
 -- waterTankA :: A
 -- waterTankA = Set.fromList [ "opened", "closed"]
+
+
+-- | Abiter example from the shortened paper
+-- This seems to be a request based system where you can request A or B
+
+data ArbiterΣᵢ = RequestARequestB | DenyARequestB | RequestADenyB | DenyADenyB deriving (Show, Eq, Ord)
+
+data ArbiterΣₒ = GrantedAGrantedB | DeniedAGrantedB | GrantedADeniedB | DeniedADeniedB deriving (Show, Eq, Ord)
+
+data ArbiterQ = QIdle | QGrantedA | Q GrantedB deriving (Show, Eq, Ord)
