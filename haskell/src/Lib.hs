@@ -1,5 +1,6 @@
 {-# LANGUAGE UnicodeSyntax #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 module Lib where
 
@@ -75,19 +76,21 @@ data MDPAbstraction _Σᵢ¹ _Σᵢ² = MDPAbstraction {
   , _F :: Set Q
 }
 
+
 -- | LTL to Safety Automaton
--- TODO
-ltlToAutomaton :: LTL -> SafetyAutomaton
+-- TODO should pass ap to Safety Automaton
+ltlToAutomaton :: LTL ap -> SafetyAutomaton
 ltlToAutomaton = undefined
 
--- | 2 player Game
+-- | 2 player Safety Game G
+-- Section 6 describes tuple
 data Game _G _Σᵢ _Σₒ = Game {
     _G :: Set _G -- Finite set of game states
-    , g₀ :: _G -- Initial state
+    , q₀ :: _G -- Initial state
     , _Σᵢ :: _Σᵢ -- Input alphabet
     , _Σₒ :: _Σₒ -- Output alphabet
     , δ :: (_G, _Σᵢ, _Σₒ) -> _G -- Transition function
-    , win :: _G -- The winning region
+    , _Fᵍ :: Set _G -- Accepting states
 }
 
 type Σ = Set Int
@@ -104,14 +107,14 @@ type Prop = String
 -- ap: Set of Atomic Propositions
 data LTL ap
   = AP ap            -- Atomic proposition
-  | Not LTL
-  | And LTL LTL
-  | Or LTL LTL
-  | Implies LTL LTL
-  | X LTL            -- Next
-  | G LTL            -- Globally/Always
-  | F LTL            -- Eventually
-  | U LTL LTL        -- Until
+  | Not (LTL ap)
+  | And (LTL ap) (LTL ap)
+  | Or (LTL ap) (LTL ap)
+  | Implies (LTL ap) (LTL ap)
+  | X (LTL ap) -- Next
+  | G (LTL ap) -- Globally/Always
+  | F (LTL ap) -- Eventually
+  | U (LTL ap) (LTL ap) -- Until
   deriving (Eq, Show)
 
 -- | Sugar
@@ -153,7 +156,6 @@ satisfies σ idx formula = case formula of
         holdsAt i = satisfies σ i f2 && all (\j -> satisfies σ j f1) [idx .. i - 1]
     in any holdsAt [idx .. length σ - 1]
 
-
 -- | Section 6 a shield is computed from an abstraction of the MDP φᵐ and the safety automaton φˢ
 computePreemptiveShield :: SafetyAutomaton -> MDPAbstraction -> S
 computePreemptiveShield φˢ φᵐ =
@@ -162,7 +164,7 @@ computePreemptiveShield φˢ φᵐ =
   let _A = fst <$> φᵐ._Σᵢ -- Actions
       _L = snd <$> φᵐ._Σᵢ -- Labels
       _G = Set.cartesianProduct φˢ._Q φᵐ._Q -- A product of both automata's states
-      _G' = SafetyGame {
+      _G' = Game {
             _G = φˢ._Q `cartesianProduct` φᵐ._Q
             , q₀ = (φˢ.q₀, φᵐ.q₀)
             , _Σᵢ = _L
@@ -171,18 +173,18 @@ computePreemptiveShield φˢ φᵐ =
            -- I wonder if I should use tuples instead of functions like in python
            -- Not sure what is better when I start using an SMT solver
            , δ = \(q, qₘ) l a -> (φˢ.δ q (l, a), φᵐ.δ qₘ, (l, a))
-           , _Fᵍ = (φˢ._F `cartesianProduct` φᵐ.Q) `union` (φˢ.Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
+           , _Fᵍ = (φˢ._F `cartesianProduct` φᵐ._Q) `union` (φˢ._Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
           }
       -- 2. Compute the winning strategy TODO this is described in Shield Synthesis but I think we can use SMT for this part
       _W = undefined
       -- 3. For pre-emptive shielding translate G and W into a reactive system
-      _S = Shield {
+      _S = S {
         _Q = _G
         , q₀ = _G'.q₀
         -- A x L which we can get from the MDP abstraction
         , _Σᵢ = φᵐ._Σᵢ
         -- The output is a set of actions 2ᴬ
-        , _Σₒ = powerset _A
+        , _Σ₀ = powerset _A
         , δ = \(g, l, a) -> _G'.δ (g, l, a)
         , λ = \(g, l) -> Set.filter (\a -> φˢ.δ (g, l, a) `elem` _W) _A
       }
@@ -204,7 +206,7 @@ type L = Set Prop
 data WatertankAP = OpenAP | CloseAP | LevelLessThan100AP | LevelGreaterThan0AP deriving (Show, Eq, Ord)
 
 -- Actions are just {open, close}
-newtype WatertankA = Open | Close deriving (Show, Eq, Ord)
+data WatertankA = OpenAction | CloseAction deriving (Show, Eq, Ord)
 
 data WatertankL = LevelLessThan1 | LevelBetween1And99 | LevelGreaterThan99 deriving (Show, Eq, Ord)
 
