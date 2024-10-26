@@ -44,8 +44,6 @@ data S _Σᵢ¹ _Σᵢ² _Σ₀ = S {
   _Q :: Set Q
   -- Initial state
   , q₀ :: Q
-  -- Input alphabet
-  , _Σᵢ :: (_Σᵢ¹, _Σᵢ²)
   -- Output alphabet
   , _Σ₀ :: _Σ₀
   -- Transition function
@@ -56,12 +54,13 @@ data S _Σᵢ¹ _Σᵢ² _Σ₀ = S {
 
 -- Safety automation φˢ
 -- The System S satisfies the automation if the run of S only visits safe states in F
--- Σᵢ = Σᵢ¹ x Σᵢ² but can also be decomposed to TODO
-data SafetyAutomaton _Σᵢ¹ _Σᵢ² = SafetyAutomaton {
+-- φˢ = (Q, q₀, Σ δ, F)
+-- Σ = Σᵢ x Σₒ This is interesting because this makes the transition different?
+-- Section 6: Σ₀ = Actions
+data SafetyAutomaton _Σᵢ _Σₒ = SafetyAutomaton {
   _Q :: Set Q -- States
   , q₀:: Q
-  , _Σ :: Set (_Σᵢ¹, _Σᵢ²) -- Input alphabet
-  , δ :: (Q, (_Σᵢ¹, _Σᵢ²)) -> Q
+  , δ :: (Q, (_Σᵢ, _Σₒ)) -> Q
   , _F :: Set Q -- Set of safe states where F ⊆ Q
   }
 
@@ -79,6 +78,8 @@ data MDPAbstraction _Σᵢ¹ _Σᵢ² = MDPAbstraction {
 
 -- | LTL to Safety Automaton
 -- TODO should pass ap to Safety Automaton
+-- But it seems that the Σᵢ¹ is {open, close} and Σᵢ² is {level < 1, 1 ≤ level ≤ 99, level > 99}
+-- Which is differnt AP from the
 ltlToAutomaton :: LTL ap -> SafetyAutomaton
 ltlToAutomaton = undefined
 
@@ -104,17 +105,18 @@ type Σ = Set Int
 type Prop = String
 
 -- | LTL Formula data type
--- ap: Set of Atomic Propositions
-data LTL ap
-  = AP ap            -- Atomic proposition
-  | Not (LTL ap)
-  | And (LTL ap) (LTL ap)
-  | Or (LTL ap) (LTL ap)
-  | Implies (LTL ap) (LTL ap)
-  | X (LTL ap) -- Next
-  | G (LTL ap) -- Globally/Always
-  | F (LTL ap) -- Eventually
-  | U (LTL ap) (LTL ap) -- Until
+-- AP = APᵢ union AP₀ the set of atomic propositions
+data LTL _APᵢ _AP₀
+  = APᵢ _APᵢ -- TODO maybe merge these first two?
+  | AP₀ _AP₀
+  | Not (LTL _APᵢ _AP₀)
+  | And (LTL _APᵢ _AP₀) (LTL _APᵢ _AP₀)
+  | Or (LTL _APᵢ _AP₀) (LTL _APᵢ _AP₀)
+  | Implies (LTL _APᵢ _AP₀) (LTL _APᵢ _AP₀)
+  | X (LTL _APᵢ _AP₀)
+  | G (LTL _APᵢ _AP₀)
+  | F (LTL _APᵢ _AP₀)
+  | U (LTL _APᵢ _AP₀) (LTL _APᵢ _AP₀)
   deriving (Eq, Show)
 
 -- | Sugar
@@ -133,7 +135,7 @@ type Trace = [Set Prop]
 
 -- | Does the trace satisfy the LTL
 -- TODO LLM generated might be wrong. This tracks the index but I think we can write this recursively?
-satisfies :: Trace -> Int -> LTL -> Bool
+satisfies :: Trace -> Int -> LTL ap -> Bool
 satisfies σ idx formula = case formula of
   AP p ->
     idx < length σ && p `elem` (σ !! idx)
@@ -203,12 +205,14 @@ type L = Set Prop
 -- watertankL :: L
 -- watertankL = Set.fromList ["level < 1", "1 ≤ level ≤ 99", "level > 99"]
 
-data WatertankAP = OpenAP | CloseAP | LevelLessThan100AP | LevelGreaterThan0AP deriving (Show, Eq, Ord)
 
 -- Actions are just {open, close}
 data WatertankA = OpenAction | CloseAction deriving (Show, Eq, Ord)
-
 data WatertankL = LevelLessThan1 | LevelBetween1And99 | LevelGreaterThan99 deriving (Show, Eq, Ord)
+
+-- AP seems to equal Action | Labels
+data WatertankAP = OpenAP | CloseAP | LevelLessThan100AP | LevelGreaterThan0AP deriving (Show, Eq, Ord)
+
 
 watertankφ :: LTL WatertankAP
 watertankφ = G (AP LevelGreaterThan0) &&& G (AP LevelLessThan100)
