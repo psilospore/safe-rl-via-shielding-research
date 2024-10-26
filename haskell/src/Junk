@@ -1,0 +1,57 @@
+-- Contains potential junk but it might be useful later
+
+
+-- This is actually properties of the shield maybe not what we want
+-- But overall it can also be seem as transforming a MDP into a new MDP (section 5.1)
+preemptiveShield :: M -> Shield -> M
+preemptiveShield _M _S =
+  -- Product of the original MDP and the state space of the shield
+  let _S' = undefined
+      -- For each s' in S' create a new subset of available actions
+      -- Apply the shield to Aₛ to get A'ₛ
+      -- So that gets us a bunch of A'ₛ but how do we get A'?
+      _A' = undefined
+      -- We only want transition functions from P for actions in A'ₛ
+      _P' = undefined
+      _R' = undefined
+  in M _S' M.s_i  _A' _P' _R'
+
+
+-- | Preemptive Shield iteration
+-- Given the time step compute a set of safe actions (remove unsafe actions)
+-- Environment executes one action and moves to the next state providing a reward
+-- I think the paper describes this more clearly even though this might be harder to use
+-- The input alphabet Σᵢ = Σᵢ¹ x Σᵢ² = L x A
+-- The output alphabet Σₒ = 2ᴬ
+-- Where A is the boolean 'Actions' in the MDP
+-- preemptiveShieldIter :: (L, A) -> Set A
+-- preemptiveShieldIter (l, a) = undefined
+
+
+-- | Used for synthesizing the shield
+-- Defines a set Fᵍ  ⊆ G of safe states
+-- Where win(g₀, g₁, ...) iff ∀i ≥ 0. gᵢ ∈ Fᵍ
+-- I think we can solve for this using SMT. In the original implementation they used BDDs.
+-- safetyGame ∷ G -> G
+-- safetyGame g = undefined
+
+-- safetyGame ∷ S _Σᵢ¹ _Σᵢ² _Σ₀ -> SafetyAutomaton -> S _ _
+-- safetyGame=
+--     let g = undefined
+--         q = undefined
+--         _Σᵢ = undefined
+--         _Σₒ= undefined
+--         δ' = undefined -- (g, σᵢ ) = (g, σᵢ, ρ(g, σᵢ))
+--         ρ = undefined
+--     in undefined -- TODO S q _Σᵢ _Σₒ δ'
+
+-- | Uses the safety game to synthesize a shield which implements the winning strategy in a new reactive system (Is it a finite reactive system?)
+-- shield ∷ Shield _Σᵢ _Σ₀
+-- shield =
+--     let g = undefined
+--         q = undefined
+--         _Σᵢ = undefined
+--         _Σₒ= undefined
+--         δ' = undefined -- (g, σᵢ ) = (g, σᵢ, ρ(g, σᵢ))
+--         ρ = undefined
+--     in undefined -- TODO S q _Σᵢ _Σₒ δ'
