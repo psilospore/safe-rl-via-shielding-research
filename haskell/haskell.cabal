@@ -34,7 +34,7 @@ library
       src
   default-extensions:
       UnicodeSyntax
-      RecordDotSyntax
+      OverloadedRecordDot
       DataKinds
       LambdaCase
       BlockArguments
@@ -42,7 +42,7 @@ library
   build-depends:
       base >=4.7 && <5
     , containers
-    , sbv
+    , z3
   default-language: Haskell2010
 
 executable haskell-exe
@@ -55,7 +55,7 @@ executable haskell-exe
       app
   default-extensions:
       UnicodeSyntax
-      RecordDotSyntax
+      OverloadedRecordDot
       DataKinds
       LambdaCase
       BlockArguments
@@ -64,7 +64,7 @@ executable haskell-exe
       base >=4.7 && <5
     , containers
     , haskell
-    , sbv
+    , z3
   default-language: Haskell2010
 
 test-suite haskell-test
@@ -78,7 +78,7 @@ test-suite haskell-test
       test
   default-extensions:
       UnicodeSyntax
-      RecordDotSyntax
+      OverloadedRecordDot
       DataKinds
       LambdaCase
       BlockArguments
@@ -87,5 +87,5 @@ test-suite haskell-test
       base >=4.7 && <5
     , containers
     , haskell
-    , sbv
+    , z3
   default-language: Haskell2010

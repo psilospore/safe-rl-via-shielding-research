@@ -21,8 +21,8 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
-- sbv
 - containers
+- z3
 
 ghc-options:
 - -Wall
@@ -37,7 +37,7 @@ ghc-options:
 
 default-extensions:
 - UnicodeSyntax
-- RecordDotSyntax
+- OverloadedRecordDot
 - DataKinds
 - LambdaCase
 - BlockArguments

@@ -4,6 +4,10 @@ Shielding implementation in Haskell.
 
 Uses the sbv library for SMT solving.
 
+## Depedencies
+
+Install z3 the runtime libraries e.g. libz3-dev
+
 ## TODO
 
 - [ ] Shielding Loop
