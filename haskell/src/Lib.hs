@@ -101,8 +101,9 @@ type Σ = Set Int
 type Prop = String
 
 -- | LTL Formula data type
-data LTL
-  = AP Prop          -- Atomic proposition
+-- ap: Set of Atomic Propositions
+data LTL ap
+  = AP ap            -- Atomic proposition
   | Not LTL
   | And LTL LTL
   | Or LTL LTL
@@ -119,8 +120,9 @@ data LTL
 (-->) = Implies
 
 -- Example in paper
-exampleLtlFormula :: LTL
-exampleLtlFormula = G ( AP "r" ||| X (AP "g"))
+data LTLExampleAP = ExR | ExG deriving (Show, Eq, Ord)
+exampleLtlFormula :: LTL LTLExampleAP
+exampleLtlFormula = G ( AP ExR ||| X (AP ExG))
 
 
 -- | A trace I think?
@@ -199,20 +201,26 @@ type L = Set Prop
 -- watertankL :: L
 -- watertankL = Set.fromList ["level < 1", "1 ≤ level ≤ 99", "level > 99"]
 
-data WatertankAP = Open | Close deriving (Show, Eq, Ord)
+data WatertankAP = OpenAP | CloseAP | LevelLessThan100AP | LevelGreaterThan0AP deriving (Show, Eq, Ord)
 
--- | Water tank actions
-newtype WatertankA = WatertankA { unWatertankA :: Set WatertankAP } deriving (Show, Eq, Ord)
+-- Actions are just {open, close}
+newtype WatertankA = Open | Close deriving (Show, Eq, Ord)
 
 data WatertankL = LevelLessThan1 | LevelBetween1And99 | LevelGreaterThan99 deriving (Show, Eq, Ord)
 
--- TODO maybe make atomic propositions something else
--- So I can draw connections
-waterTankExampleLtlFormula = G (AP "level > 0") &&& G (AP "level < 100")
-   -- TOOD &&& G ((AP "open" &&& X (AP "close")) --> (X X (AP "close") &&& XXX (AP "close")))
+watertankφ :: LTL WatertankAP
+watertankφ = G (AP LevelGreaterThan0) &&& G (AP LevelLessThan100)
+   -- TODO &&& G ((AP "open" &&& X (AP "close")) --> (X X (AP "close") &&& XXX (AP "close")))
 
--- waterTankA :: A
--- waterTankA = Set.fromList [ "opened", "closed"]
+watertankφˢ :: SafetyAutomaton WatertankAP 
+watertankφˢ = ltlToAutomaton watertankφ
+
+watertankφᵐ :: MDPAbstraction WatertankA WatertankL
+watertankφᵐ = undefined -- TODO from the paper
+
+watertankPreemptiveShield :: S
+watertankPreemptiveShield = computePreemptiveShield watertankφˢ watertankφᵐ
+
 
 -- | Arbiter example from the shortened paper
 -- This seems to be a request based system where you can request A or B
@@ -222,3 +230,4 @@ data ArbiterΣᵢ = RequestARequestB | DenyARequestB | RequestADenyB | DenyADeny
 data ArbiterΣₒ = GrantedAGrantedB | DeniedAGrantedB | GrantedADeniedB | DeniedADeniedB deriving (Show, Eq, Ord)
 
 data ArbiterQ = QIdle | QGrantedA | QGrantedB deriving (Show, Eq, Ord)
+
