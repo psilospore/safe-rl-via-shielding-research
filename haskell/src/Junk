@@ -28,6 +28,7 @@ preemptiveShield _M _S =
 -- preemptiveShieldIter (l, a) = undefined
 
 
+
 -- | Used for synthesizing the shield
 -- Defines a set Fᵍ  ⊆ G of safe states
 -- Where win(g₀, g₁, ...) iff ∀i ≥ 0. gᵢ ∈ Fᵍ

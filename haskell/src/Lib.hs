@@ -5,7 +5,7 @@
 
 module Lib where
 
-import Data.Set (Set, cartesianProduct, union)
+import Data.Set (Set, cartesianProduct, union, (\\), powerSet)
 import qualified Data.Set as Set
 
 -- TODOs
@@ -41,17 +41,17 @@ data Q = Q Int deriving (Show, Eq, Ord)
 -- _Σᵢ: Input alphabet
 -- _Σᵢ = _Σᵢ¹ x _Σᵢ²
 -- _Σ₀: Output alphabet
-data S _Σᵢ¹ _Σᵢ² _Σ₀ = S {
+data S _Σᵢ¹ _Σᵢ² _Σ₀ _Q = S {
   -- Finite set of states
-  _Q :: Set Q
+  _Q :: Set _Q
   -- Initial state
-  , q₀ :: Q
+  , q₀ :: _Q
   -- Output alphabet
   , _Σ₀ :: _Σ₀
   -- Transition function
-  , δ :: (Q, (_Σᵢ¹, _Σᵢ²)) → Q
+  , δ :: (_Q, (_Σᵢ¹, _Σᵢ²)) → _Q
   -- Complete output function
-  , λ :: (Q, (_Σᵢ¹, _Σᵢ²)) → _Σ₀
+  , λ :: (_Q, (_Σᵢ¹, _Σᵢ²)) → _Σ₀
 }
 
 -- Safety automation φˢ
@@ -60,39 +60,66 @@ data S _Σᵢ¹ _Σᵢ² _Σ₀ = S {
 -- Σ = Σᵢ x Σₒ This is interesting because this makes the transition different?
 -- Section 6: Σ₀ = Actions
 data SafetyAutomaton _Σᵢ _Σₒ = SafetyAutomaton {
-  _Q :: Set Q -- States
-  , q₀:: Q
-  , δ :: (Q, (_Σᵢ, _Σₒ)) -> Q
-  , _F :: Set Q -- Set of safe states where F ⊆ Q
-  }
+  _Q :: Set Qₛ -- States
+  , q₀:: Qₛ
+  , δ :: (Qₛ, (_Σᵢ, _Σₒ)) -> Qₛ
+  , _F :: Set Qₛ -- Set of safe states where F ⊆ Q
+}
+
+-- | States for the safety automaton generated from the LTL formula
+-- This is random in the paper it's qₐ, q_b, q_c, ...
+newtype Qₛ = Qₛ Int deriving (Eq, Ord, Show)
 
 -- | MDP Abstraction φᵐ
 -- Which is some abstraction over the MDP
 -- Σᵢ = A x L
-data MDPAbstraction _Σᵢ¹ _Σᵢ² = MDPAbstraction {
-  _Q :: Set Q
-  , q₀ :: Q
+data MDPAbstraction _Σᵢ¹ _Σᵢ² _Q = MDPAbstraction {
+  _Q :: Set _Q
+  , q₀ :: _Q
   , _Σᵢ :: Set (_Σᵢ¹, _Σᵢ²)
-  , δ :: (Q, (_Σᵢ¹, _Σᵢ²)) -> Q
-  , _F :: Set Q
+  , δ :: (_Q, (_Σᵢ¹, _Σᵢ²)) -> _Q
+  , _F :: Set _Q
 }
 
 
--- | LTL to Safety Automaton
--- TODO should pass ap to Safety Automaton
--- But it seems that the Σᵢ¹ is {open, close} and Σᵢ² is {level < 1, 1 ≤ level ≤ 99, level > 99}
--- Which is differnt AP from the
-ltlToAutomaton :: forall _APᵢ _AP₀. LTL _APᵢ _AP₀ -> SafetyAutomaton _APᵢ _AP₀
-ltlToAutomaton = undefined
+-- | Convert an LTL formula to a Safety Automaton
+-- TODO this is LLM generated might be incorrect
+ltlToAutomaton :: forall _APᵢ _AP₀ _Σᵢ _Σₒ. (Ord _Σᵢ, Ord _Σₒ)
+  => LTL _APᵢ _AP₀
+  -> SafetyAutomaton _Σᵢ _Σₒ
+ltlToAutomaton ltlFormula = SafetyAutomaton {
+    _Q = states,                  -- The set of all possible states (from LTL subformulas) this is random in the paper it's qₐ, q_b, q_c, ...
+    q₀ = initialState,             -- Initial state based on the LTL formula
+    δ = transitionFunction,        -- Transition function based on Σᵢ × Σₒ
+    _F = safeStates                -- Set of safe states
+  }
+  where
+    -- Step 1: Define states based on LTL subformulas
+    states :: Set Qₛ
+    states = undefined -- TODO
+
+    -- Step 2: Define the initial state based on the formula
+    initialState :: Qₛ
+    initialState = undefined -- getInitialState ltlFormula
+
+    -- Step 3: Transition function (maps a state and input to a new state)
+    transitionFunction :: (Qₛ, (_Σᵢ, _Σₒ)) -> Qₛ
+    transitionFunction (q, (_Σᵢ, _Σₒ)) = undefined
+      -- determineNextState q (_Σᵢ, _Σₒ)
+
+    -- Step 4: Define safe states
+    -- Not sure if this is correct
+    safeStates :: Set Qₛ
+    safeStates = undefined -- filterSafeStates states ltlFormula
 
 -- | 2 player Safety Game G
 -- Section 6 describes tuple
-data Game _G _Σᵢ _Σₒ = Game {
+data Game _G _Σᵢ¹ _Σᵢ² _Σₒ¹ _Σ₀² = Game {
     _G :: Set _G -- Finite set of game states
     , q₀ :: _G -- Initial state
-    , _Σᵢ :: _Σᵢ -- Input alphabet
-    , _Σₒ :: _Σₒ -- Output alphabet
-    , δ :: (_G, _Σᵢ, _Σₒ) -> _G -- Transition function
+    , _Σᵢ :: Set (_Σᵢ¹, _Σᵢ²) -- Input alphabet
+    , _Σₒ :: Set (_Σₒ¹, _Σ₀²) -- Output alphabet
+    , δ :: (_G, (_Σᵢ¹, _Σᵢ²), (_Σₒ¹, _Σ₀²)) -> _G -- Transition function
     , _Fᵍ :: Set _G -- Accepting states
 }
 
@@ -133,24 +160,20 @@ data LTLExampleAP = ExR | ExG deriving (Show, Eq, Ord)
 exampleLtlFormula :: LTL () LTLExampleAP
 exampleLtlFormula = G ( AP₀ ExR ||| X (AP₀ ExG))
 
-
 -- | Section 6 a shield is computed from an abstraction of the MDP φᵐ and the safety automaton φˢ
-computePreemptiveShield :: forall _A _L. SafetyAutomaton _A _L -> MDPAbstraction _A _L -> S _L _A _A
+computePreemptiveShield :: forall action label _Qₘ. SafetyAutomaton action label -> MDPAbstraction action label _Qₘ -> S label action action (Qₛ, _Qₘ)
 computePreemptiveShield φˢ φᵐ =
   -- 1. Translate φˢ and φᵐ into a safety game
   -- The MDP abstraction's Σᵢ = A x L therefore:
   let _A = fst <$> φᵐ._Σᵢ -- Actions
       _L = snd <$> φᵐ._Σᵢ -- Labels
       _G = Set.cartesianProduct φˢ._Q φᵐ._Q -- A product of both automata's states
-      _G' = Game {
+      _G' :: Game (Qₛ, _Qₘ) label action action label = Game {
             _G = φˢ._Q `cartesianProduct` φᵐ._Q
             , q₀ = (φˢ.q₀, φᵐ.q₀)
             , _Σᵢ = _L
            ,  _Σₒ = _A
-           -- Paper might be missing a qₘ I think
-           -- I wonder if I should use tuples instead of functions like in python
-           -- Not sure what is better when I start using an SMT solver
-           , δ = \(q, qₘ) l a -> (φˢ.δ q (l, a), φᵐ.δ qₘ, (l, a))
+           , δ = \((q :: Qₛ, qₘ), (l :: label), (a :: action)) -> ((φˢ.δ q (l, a)), (φᵐ.δ qₘ, (l, a)))
            , _Fᵍ = (φˢ._F `cartesianProduct` φᵐ._Q) `union` (φˢ._Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
           }
       -- 2. Compute the winning strategy TODO this is described in Shield Synthesis but I think we can use SMT for this part
@@ -162,7 +185,7 @@ computePreemptiveShield φˢ φᵐ =
         -- A x L which we can get from the MDP abstraction
         --, _Σᵢ = φᵐ._Σᵢ should just be type param
         -- The output is a set of actions 2ᴬ
-        , _Σ₀ = powerset _A
+        , _Σ₀ = powerSet _A
         , δ = \(g, l, a) -> _G'.δ (g, l, a)
         , λ = \(g, l) -> Set.filter (\a -> φˢ.δ (g, l, a) `elem` _W) _A
       }
@@ -190,17 +213,20 @@ data WatertankL = LevelLessThan1 | LevelBetween1And99 | LevelGreaterThan99 deriv
 -- I think we don't need this now we reformulated LTL to use APᵢ and AP₀
 -- data WatertankAP = OpenAP | CloseAP | LevelLessThan100AP | LevelGreaterThan0AP deriving (Show, Eq, Ord)
 
-watertankφ :: LTL WatertankA WatertankL
-watertankφ = G (AP LevelGreaterThan0) &&& G (AP LevelLessThan100)
+watertankφ :: LTL WatertankL WatertankA
+watertankφ = G (APᵢ LevelGreaterThan0) &&& G (APᵢ LevelLessThan100)
    -- TODO &&& G ((AP "open" &&& X (AP "close")) --> (X X (AP "close") &&& XXX (AP "close")))
 
 watertankφˢ :: SafetyAutomaton WatertankA WatertankL
 watertankφˢ = ltlToAutomaton watertankφ
 
-watertankφᵐ :: MDPAbstraction WatertankA WatertankL
+-- | TODO
+data WatertankQ = WatertankQ0 | WatertankQ1 | WatertankQ2 deriving (Show, Eq, Ord)
+
+watertankφᵐ :: MDPAbstraction WatertankA WatertankL WatertankQ
 watertankφᵐ = undefined -- TODO from the paper
 
-watertankPreemptiveShield :: S WatertankA WatertankL WatertankA
+watertankPreemptiveShield :: S WatertankL WatertankA WatertankA (Qₛ, WatertankQ)
 watertankPreemptiveShield = computePreemptiveShield watertankφˢ watertankφᵐ
 
 
@@ -213,3 +239,6 @@ data ArbiterΣₒ = GrantedAGrantedB | DeniedAGrantedB | GrantedADeniedB | Denie
 
 data ArbiterQ = QIdle | QGrantedA | QGrantedB deriving (Show, Eq, Ord)
 
+-- Turn a sum type into a Set of all possible values
+sumTypeToSet :: (Ord a, Enum a, Bounded a) => Set a
+sumTypeToSet = Set.fromList [minBound..maxBound]
