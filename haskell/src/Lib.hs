@@ -85,9 +85,7 @@ data MDPAbstraction _Σᵢ¹ _Σᵢ² _Q = MDPAbstraction {
 
 -- | Convert an LTL formula to a Safety Automaton
 -- TODO this is LLM generated might be incorrect
-ltlToAutomaton :: forall _APᵢ _AP₀ _Σᵢ _Σₒ. (Ord _Σᵢ, Ord _Σₒ)
-  => LTL _APᵢ _AP₀
-  -> SafetyAutomaton _Σᵢ _Σₒ
+ltlToAutomaton :: forall _APᵢ _AP₀ _Σᵢ _Σₒ. LTL _APᵢ _AP₀ -> SafetyAutomaton _Σᵢ _Σₒ
 ltlToAutomaton ltlFormula = SafetyAutomaton {
     _Q = states,                  -- The set of all possible states (from LTL subformulas) this is random in the paper it's qₐ, q_b, q_c, ...
     q₀ = initialState,             -- Initial state based on the LTL formula
