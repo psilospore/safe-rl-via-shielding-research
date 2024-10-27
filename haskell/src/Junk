@@ -55,3 +55,154 @@ preemptiveShield _M _S =
 --         δ' = undefined -- (g, σᵢ ) = (g, σᵢ, ρ(g, σᵢ))
 --         ρ = undefined
 --     in undefined -- TODO S q _Σᵢ _Σₒ δ'
+
+
+
+
+
+-- | A trace I think?
+type Trace = [Set Prop]
+
+-- | Does the trace satisfy the LTL
+satisfies :: forall _APᵢ _AP₀. Trace -> Int -> LTL _APᵢ _AP₀ -> Bool
+satisfies σ idx formula = case formula of
+  APᵢ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  AP₀ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  Not f ->
+    not (satisfies σ idx f)
+  And f1 f2 ->
+    satisfies σ idx f1 && satisfies σ idx f2
+  Or f1 f2 ->
+    satisfies σ idx f1 || satisfies σ idx f2
+  Implies f1 f2 ->
+    if satisfies σ idx f1 then satisfies σ idx f2 else True
+  X f ->
+    satisfies σ (idx + 1) f
+  G f ->
+    all (\i -> satisfies σ i f) [idx .. length σ - 1]
+  F f ->
+    any (\i -> satisfies σ i f) [idx .. length σ - 1]
+  U f1 f2 ->
+    let future = drop idx σ
+        holdsAt i = satisfies σ i f2 && all (\j -> satisfies σ j f1) [idx .. i - 1]
+    in any holdsAt [idx .. length σ - 1]
+
+
+
+
+-- | A trace I think?
+type Trace = [Set Prop]
+
+-- | Does the trace satisfy the LTL
+satisfies :: forall _APᵢ _AP₀. Trace -> Int -> LTL _APᵢ _AP₀ -> Bool
+satisfies σ idx formula = case formula of
+  APᵢ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  AP₀ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  Not f ->
+    not (satisfies σ idx f)
+  And f1 f2 ->
+    satisfies σ idx f1 && satisfies σ idx f2
+  Or f1 f2 ->
+    satisfies σ idx f1 || satisfies σ idx f2
+  Implies f1 f2 ->
+    if satisfies σ idx f1 then satisfies σ idx f2 else True
+  X f ->
+    satisfies σ (idx + 1) f
+  G f ->
+    all (\i -> satisfies σ i f) [idx .. length σ - 1]
+  F f ->
+    any (\i -> satisfies σ i f) [idx .. length σ - 1]
+  U f1 f2 ->
+    let future = drop idx σ
+        holdsAt i = satisfies σ i f2 && all (\j -> satisfies σ j f1) [idx .. i - 1]
+    in any holdsAt [idx .. length σ - 1]
+
+-- | A trace I think?
+type Trace = [Set Prop]
+
+-- | Does the trace satisfy the LTL
+satisfies :: forall _APᵢ _AP₀. Trace -> Int -> LTL _APᵢ _AP₀ -> Bool
+satisfies σ idx formula = case formula of
+  APᵢ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  AP₀ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  Not f ->
+    not (satisfies σ idx f)
+  And f1 f2 ->
+    satisfies σ idx f1 && satisfies σ idx f2
+  Or f1 f2 ->
+    satisfies σ idx f1 || satisfies σ idx f2
+  Implies f1 f2 ->
+    if satisfies σ idx f1 then satisfies σ idx f2 else True
+  X f ->
+    satisfies σ (idx + 1) f
+  G f ->
+    all (\i -> satisfies σ i f) [idx .. length σ - 1]
+  F f ->
+    any (\i -> satisfies σ i f) [idx .. length σ - 1]
+  U f1 f2 ->
+    let future = drop idx σ
+        holdsAt i = satisfies σ i f2 && all (\j -> satisfies σ j f1) [idx .. i - 1]
+    in any holdsAt [idx .. length σ - 1]
+
+-- | A trace I think?
+type Trace = [Set Prop]
+
+-- | Does the trace satisfy the LTL
+satisfies :: forall _APᵢ _AP₀. Trace -> Int -> LTL _APᵢ _AP₀ -> Bool
+satisfies σ idx formula = case formula of
+  APᵢ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  AP₀ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  Not f ->
+    not (satisfies σ idx f)
+  And f1 f2 ->
+    satisfies σ idx f1 && satisfies σ idx f2
+  Or f1 f2 ->
+    satisfies σ idx f1 || satisfies σ idx f2
+  Implies f1 f2 ->
+    if satisfies σ idx f1 then satisfies σ idx f2 else True
+  X f ->
+    satisfies σ (idx + 1) f
+  G f ->
+    all (\i -> satisfies σ i f) [idx .. length σ - 1]
+  F f ->
+    any (\i -> satisfies σ i f) [idx .. length σ - 1]
+  U f1 f2 ->
+    let future = drop idx σ
+        holdsAt i = satisfies σ i f2 && all (\j -> satisfies σ j f1) [idx .. i - 1]
+    in any holdsAt [idx .. length σ - 1]
+-- | A trace I think?
+type Trace = [Set Prop]
+
+-- | Does the trace satisfy the LTL
+satisfies :: forall _APᵢ _AP₀. Trace -> Int -> LTL _APᵢ _AP₀ -> Bool
+satisfies σ idx formula = case formula of
+  APᵢ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  AP₀ p ->
+    idx < length σ && p `elem` (σ !! idx)
+  Not f ->
+    not (satisfies σ idx f)
+  And f1 f2 ->
+    satisfies σ idx f1 && satisfies σ idx f2
+  Or f1 f2 ->
+    satisfies σ idx f1 || satisfies σ idx f2
+  Implies f1 f2 ->
+    if satisfies σ idx f1 then satisfies σ idx f2 else True
+  X f ->
+    satisfies σ (idx + 1) f
+  G f ->
+    all (\i -> satisfies σ i f) [idx .. length σ - 1]
+  F f ->
+    any (\i -> satisfies σ i f) [idx .. length σ - 1]
+  U f1 f2 ->
+    let future = drop idx σ
+        holdsAt i = satisfies σ i f2 && all (\j -> satisfies σ j f1) [idx .. i - 1]
+    in any holdsAt [idx .. length σ - 1]

@@ -1,10 +1,12 @@
 {-# LANGUAGE UnicodeSyntax #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Lib where
 
 import Data.Set (Set, cartesianProduct, union)
+import qualified Data.Set as Set
 
 -- TODOs
 -- Maybe start more top down instead so look at later pages and try to implement backwards.
@@ -80,7 +82,7 @@ data MDPAbstraction _Σᵢ¹ _Σᵢ² = MDPAbstraction {
 -- TODO should pass ap to Safety Automaton
 -- But it seems that the Σᵢ¹ is {open, close} and Σᵢ² is {level < 1, 1 ≤ level ≤ 99, level > 99}
 -- Which is differnt AP from the
-ltlToAutomaton :: LTL ap -> SafetyAutomaton
+ltlToAutomaton :: forall _APᵢ _AP₀. LTL _APᵢ _AP₀ -> SafetyAutomaton _APᵢ _AP₀
 ltlToAutomaton = undefined
 
 -- | 2 player Safety Game G
@@ -126,40 +128,14 @@ data LTL _APᵢ _AP₀
 
 -- Example in paper
 data LTLExampleAP = ExR | ExG deriving (Show, Eq, Ord)
-exampleLtlFormula :: LTL LTLExampleAP
-exampleLtlFormula = G ( AP ExR ||| X (AP ExG))
 
+-- Not sure which are AP₀ and APᵢ in this context
+exampleLtlFormula :: LTL () LTLExampleAP
+exampleLtlFormula = G ( AP₀ ExR ||| X (AP₀ ExG))
 
--- | A trace I think?
-type Trace = [Set Prop]
-
--- | Does the trace satisfy the LTL
--- TODO LLM generated might be wrong. This tracks the index but I think we can write this recursively?
-satisfies :: Trace -> Int -> LTL ap -> Bool
-satisfies σ idx formula = case formula of
-  AP p ->
-    idx < length σ && p `elem` (σ !! idx)
-  Not f ->
-    not (satisfies σ idx f)
-  And f1 f2 ->
-    satisfies σ idx f1 && satisfies σ idx f2
-  Or f1 f2 ->
-    satisfies σ idx f1 || satisfies σ idx f2
-  Implies f1 f2 ->
-    if satisfies σ idx f1 then satisfies σ idx f2 else True
-  X f ->
-    satisfies σ (idx + 1) f
-  G f ->
-    all (\i -> satisfies σ i f) [idx .. length σ - 1]
-  F f ->
-    any (\i -> satisfies σ i f) [idx .. length σ - 1]
-  U f1 f2 ->
-    let future = drop idx σ
-        holdsAt i = satisfies σ i f2 && all (\j -> satisfies σ j f1) [idx .. i - 1]
-    in any holdsAt [idx .. length σ - 1]
 
 -- | Section 6 a shield is computed from an abstraction of the MDP φᵐ and the safety automaton φˢ
-computePreemptiveShield :: SafetyAutomaton -> MDPAbstraction -> S
+computePreemptiveShield :: forall _A _L. SafetyAutomaton _A _L -> MDPAbstraction _A _L -> S _L _A _A
 computePreemptiveShield φˢ φᵐ =
   -- 1. Translate φˢ and φᵐ into a safety game
   -- The MDP abstraction's Σᵢ = A x L therefore:
@@ -184,17 +160,17 @@ computePreemptiveShield φˢ φᵐ =
         _Q = _G
         , q₀ = _G'.q₀
         -- A x L which we can get from the MDP abstraction
-        , _Σᵢ = φᵐ._Σᵢ
+        --, _Σᵢ = φᵐ._Σᵢ should just be type param
         -- The output is a set of actions 2ᴬ
         , _Σ₀ = powerset _A
         , δ = \(g, l, a) -> _G'.δ (g, l, a)
         , λ = \(g, l) -> Set.filter (\a -> φˢ.δ (g, l, a) `elem` _W) _A
       }
-  in prune _S
+  in _S
 
 -- Optionally remove states that are not reachable from the initial state
-prune :: S -> S
-prune s = s -- TODO optional just going to return the input for now
+-- prune :: S -> S
+-- prune s = s -- TODO optional just going to return the input for now
 
 -- Label set e.g. {level < 1, 1 ≤ level ≤ 99, level > 99}
 type L = Set Prop
@@ -211,20 +187,20 @@ data WatertankA = OpenAction | CloseAction deriving (Show, Eq, Ord)
 data WatertankL = LevelLessThan1 | LevelBetween1And99 | LevelGreaterThan99 deriving (Show, Eq, Ord)
 
 -- AP seems to equal Action | Labels
-data WatertankAP = OpenAP | CloseAP | LevelLessThan100AP | LevelGreaterThan0AP deriving (Show, Eq, Ord)
+-- I think we don't need this now we reformulated LTL to use APᵢ and AP₀
+-- data WatertankAP = OpenAP | CloseAP | LevelLessThan100AP | LevelGreaterThan0AP deriving (Show, Eq, Ord)
 
-
-watertankφ :: LTL WatertankAP
+watertankφ :: LTL WatertankA WatertankL
 watertankφ = G (AP LevelGreaterThan0) &&& G (AP LevelLessThan100)
    -- TODO &&& G ((AP "open" &&& X (AP "close")) --> (X X (AP "close") &&& XXX (AP "close")))
 
-watertankφˢ :: SafetyAutomaton WatertankAP 
+watertankφˢ :: SafetyAutomaton WatertankA WatertankL
 watertankφˢ = ltlToAutomaton watertankφ
 
 watertankφᵐ :: MDPAbstraction WatertankA WatertankL
 watertankφᵐ = undefined -- TODO from the paper
 
-watertankPreemptiveShield :: S
+watertankPreemptiveShield :: S WatertankA WatertankL WatertankA
 watertankPreemptiveShield = computePreemptiveShield watertankφˢ watertankφᵐ
 
 
