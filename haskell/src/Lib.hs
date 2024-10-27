@@ -36,7 +36,7 @@ import qualified Data.Set as Set
 -- Many of these are described in section 3 Preliminaries
 
 -- Automata States
-data Q = Q Int deriving (Show, Eq, Ord)
+newtype Q = Q Int deriving (Show, Eq, Ord)
 
 -- | S: A finite state reactive system
 -- _Σᵢ: Input alphabet
@@ -118,7 +118,7 @@ data Game _G _Σᵢ _Σₒ = Game {
     , q₀ :: _G -- Initial state
     , _Σᵢ :: Set _Σᵢ -- Input alphabet
     , _Σₒ :: Set _Σₒ -- Output alphabet
-    , δ :: (_G, _Σᵢ, _Σₒ) -> _G -- Transition function
+    , δ :: (_G, (_Σᵢ, _Σₒ)) -> _G -- Transition function
     , _Fᵍ :: Set _G -- Accepting states
 }
 
@@ -161,14 +161,14 @@ exampleLtlFormula = G ( AP₀ ExR ||| X (AP₀ ExG))
 
 -- | Section 6 a shield is computed from an abstraction of the MDP φᵐ and the safety automaton φˢ
 -- φˢ has Σ = Σᵢ x Σₒ and Σₒ = action
-computePreemptiveShield :: forall action label _Qₘ. SafetyAutomaton action label -> MDPAbstraction label action _Qₘ -> S label action (Set action) (Qₛ, _Qₘ)
+computePreemptiveShield :: forall action label _Qₘ. (Ord action, Ord label, Ord _Qₘ) => SafetyAutomaton label action -> MDPAbstraction action label _Qₘ -> S label action (Set action) (Qₛ, _Qₘ)
 computePreemptiveShield φˢ φᵐ =
   -- 1. Translate φˢ and φᵐ into a safety game
   -- The MDP abstraction's Σᵢ = A x L therefore:
   let _A :: Set action
-      _A = fst <$> φᵐ._Σᵢ -- Actions
+      _A = Set.map fst φᵐ._Σᵢ -- Actions
       _L :: Set label
-      _L = snd <$> φᵐ._Σᵢ -- Labels
+      _L = Set.map snd  φᵐ._Σᵢ -- Labels
       _G :: Set (Qₛ, _Qₘ) -- A product of both automata's states
       _G = Set.cartesianProduct φˢ._Q φᵐ._Q
       _G' :: Game (Qₛ, _Qₘ) label action
@@ -177,11 +177,16 @@ computePreemptiveShield φˢ φᵐ =
           , q₀ = (φˢ.q₀, φᵐ.q₀)
           , _Σᵢ = _L
           ,  _Σₒ = _A
-          , δ = \((q :: Qₛ, qₘ), l :: label, a :: action) -> (φˢ.δ q (l, a), (φᵐ.δ qₘ, (l, a)))
+          , δ = \((q, qₘ), (l , a)) -> (φˢ.δ (q, (l, a)), φᵐ.δ (qₘ, (a, l)))
+                                                                                                -- ^^  paper says this is (l, a) maybe they have that flipped? or I am wrong
           , _Fᵍ = (φˢ._F `cartesianProduct` φᵐ._Q) `union` (φˢ._Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
       }
       -- 2. Compute the winning strategy TODO this is described in Shield Synthesis but I think we can use SMT for this part
+      _W :: Set (Qₛ, _Qₘ)
       _W = undefined
+      -- Maybe this? not sure
+      _W' :: Set Qₛ
+      _W' = Set.map fst _W
       -- 3. For pre-emptive shielding translate G and W into a reactive system
       -- Powerset of actions (the shield outputs a set of safe actions rather than a single action)
       _2ᴬ :: Set (Set action)
@@ -195,7 +200,11 @@ computePreemptiveShield φˢ φᵐ =
         -- The output is a set of actions 2ᴬ
         , _Σ₀ = _2ᴬ
         , δ = \(g, (l, a)) -> _G'.δ (g, (l, a))
-        , λ = \(g, l) -> Set.filter (\a -> φˢ.δ (g, l, a) `elem` _W) _A
+        -- TODO hmm notation seems to omit
+       -- safety automation returns  , δ :: (Qₛ, (labelᵢ, action)) -> Qₛ
+        -- W is a (Q_S, _Q_m)
+        , λ = \((g, (l, _)):: ((Qₛ, _Qₘ), (label, action))) -> Set.filter (\a -> φˢ.δ (fst g, (l, a)) `elem` _W') _A
+        -- They also don't take the fst of g
       }
   in _S
 
@@ -225,13 +234,15 @@ watertankφ :: LTL WatertankL WatertankA
 watertankφ = G (APᵢ LevelGreaterThan1) &&& G (APᵢ LevelLessThan99)
    -- TODO &&& G ((AP "open" &&& X (AP "close")) --> (X X (AP "close") &&& XXX (AP "close")))
 
-watertankφˢ :: SafetyAutomaton WatertankA WatertankL
+-- Output from Safety Automaton is an action
+watertankφˢ :: SafetyAutomaton WatertankL WatertankA
 watertankφˢ = ltlToAutomaton watertankφ
 
 -- | TODO
 data WatertankQ = WatertankQ0 | WatertankQ1 | WatertankQ2 deriving (Show, Eq, Ord)
 
-watertankφᵐ :: MDPAbstraction WatertankL WatertankA WatertankQ
+-- The MDP abstraction has Σᵢ = A x L
+watertankφᵐ :: MDPAbstraction WatertankA WatertankL WatertankQ
 watertankφᵐ = undefined -- TODO from the paper
 
 watertankPreemptiveShield :: S WatertankL WatertankA (Set WatertankA) (Qₛ, WatertankQ)
