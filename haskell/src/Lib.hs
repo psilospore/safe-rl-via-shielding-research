@@ -1,6 +1,7 @@
 {-# LANGUAGE UnicodeSyntax #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Lib where
@@ -47,7 +48,7 @@ data S _Σᵢ¹ _Σᵢ² _Σ₀ _Q = S {
   -- Initial state
   , q₀ :: _Q
   -- Output alphabet
-  , _Σ₀ :: _Σ₀
+  , _Σ₀ :: Set _Σ₀
   -- Transition function
   , δ :: (_Q, (_Σᵢ¹, _Σᵢ²)) → _Q
   -- Complete output function
@@ -114,12 +115,12 @@ ltlToAutomaton ltlFormula = SafetyAutomaton {
 
 -- | 2 player Safety Game G
 -- Section 6 describes tuple
-data Game _G _Σᵢ¹ _Σᵢ² _Σₒ¹ _Σ₀² = Game {
+data Game _G _Σᵢ _Σₒ = Game {
     _G :: Set _G -- Finite set of game states
     , q₀ :: _G -- Initial state
-    , _Σᵢ :: Set (_Σᵢ¹, _Σᵢ²) -- Input alphabet
-    , _Σₒ :: Set (_Σₒ¹, _Σ₀²) -- Output alphabet
-    , δ :: (_G, (_Σᵢ¹, _Σᵢ²), (_Σₒ¹, _Σ₀²)) -> _G -- Transition function
+    , _Σᵢ :: Set _Σᵢ -- Input alphabet
+    , _Σₒ :: Set _Σₒ -- Output alphabet
+    , δ :: (_G, _Σᵢ, _Σₒ) -> _G -- Transition function
     , _Fᵍ :: Set _G -- Accepting states
 }
 
@@ -161,32 +162,41 @@ exampleLtlFormula :: LTL () LTLExampleAP
 exampleLtlFormula = G ( AP₀ ExR ||| X (AP₀ ExG))
 
 -- | Section 6 a shield is computed from an abstraction of the MDP φᵐ and the safety automaton φˢ
-computePreemptiveShield :: forall action label _Qₘ. SafetyAutomaton action label -> MDPAbstraction action label _Qₘ -> S label action action (Qₛ, _Qₘ)
+-- φˢ has Σ = Σᵢ x Σₒ and Σₒ = action
+computePreemptiveShield :: forall action label _Qₘ. SafetyAutomaton action label -> MDPAbstraction label action _Qₘ -> S label action (Set action) (Qₛ, _Qₘ)
 computePreemptiveShield φˢ φᵐ =
   -- 1. Translate φˢ and φᵐ into a safety game
   -- The MDP abstraction's Σᵢ = A x L therefore:
-  let _A = fst <$> φᵐ._Σᵢ -- Actions
+  let _A :: Set action
+      _A = fst <$> φᵐ._Σᵢ -- Actions
+      _L :: Set label
       _L = snd <$> φᵐ._Σᵢ -- Labels
-      _G = Set.cartesianProduct φˢ._Q φᵐ._Q -- A product of both automata's states
-      _G' :: Game (Qₛ, _Qₘ) label action action label = Game {
-            _G = φˢ._Q `cartesianProduct` φᵐ._Q
-            , q₀ = (φˢ.q₀, φᵐ.q₀)
-            , _Σᵢ = _L
-           ,  _Σₒ = _A
-           , δ = \((q :: Qₛ, qₘ), (l :: label), (a :: action)) -> ((φˢ.δ q (l, a)), (φᵐ.δ qₘ, (l, a)))
-           , _Fᵍ = (φˢ._F `cartesianProduct` φᵐ._Q) `union` (φˢ._Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
-          }
+      _G :: Set (Qₛ, _Qₘ) -- A product of both automata's states
+      _G = Set.cartesianProduct φˢ._Q φᵐ._Q
+      _G' :: Game (Qₛ, _Qₘ) label action
+      _G' = Game {
+          _G = φˢ._Q `cartesianProduct` φᵐ._Q
+          , q₀ = (φˢ.q₀, φᵐ.q₀)
+          , _Σᵢ = _L
+          ,  _Σₒ = _A
+          , δ = \((q :: Qₛ, qₘ), l :: label, a :: action) -> (φˢ.δ q (l, a), (φᵐ.δ qₘ, (l, a)))
+          , _Fᵍ = (φˢ._F `cartesianProduct` φᵐ._Q) `union` (φˢ._Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
+      }
       -- 2. Compute the winning strategy TODO this is described in Shield Synthesis but I think we can use SMT for this part
       _W = undefined
       -- 3. For pre-emptive shielding translate G and W into a reactive system
+      -- Powerset of actions (the shield outputs a set of safe actions rather than a single action)
+      _2ᴬ :: Set (Set action)
+      _2ᴬ = powerSet _A
+      _S :: S label action (Set action) (Qₛ, _Qₘ)
       _S = S {
         _Q = _G
         , q₀ = _G'.q₀
         -- A x L which we can get from the MDP abstraction
         --, _Σᵢ = φᵐ._Σᵢ should just be type param
         -- The output is a set of actions 2ᴬ
-        , _Σ₀ = powerSet _A
-        , δ = \(g, l, a) -> _G'.δ (g, l, a)
+        , _Σ₀ = _2ᴬ
+        , δ = \(g, (l, a)) -> _G'.δ (g, (l, a))
         , λ = \(g, l) -> Set.filter (\a -> φˢ.δ (g, l, a) `elem` _W) _A
       }
   in _S
@@ -207,14 +217,14 @@ type L = Set Prop
 
 -- Actions are just {open, close}
 data WatertankA = OpenAction | CloseAction deriving (Show, Eq, Ord)
-data WatertankL = LevelLessThan1 | LevelBetween1And99 | LevelGreaterThan99 deriving (Show, Eq, Ord)
+data WatertankL = LevelLessThan99 | LevelBetween1And99 | LevelGreaterThan1 deriving (Show, Eq, Ord)
 
 -- AP seems to equal Action | Labels
 -- I think we don't need this now we reformulated LTL to use APᵢ and AP₀
 -- data WatertankAP = OpenAP | CloseAP | LevelLessThan100AP | LevelGreaterThan0AP deriving (Show, Eq, Ord)
 
 watertankφ :: LTL WatertankL WatertankA
-watertankφ = G (APᵢ LevelGreaterThan0) &&& G (APᵢ LevelLessThan100)
+watertankφ = G (APᵢ LevelGreaterThan1) &&& G (APᵢ LevelLessThan99)
    -- TODO &&& G ((AP "open" &&& X (AP "close")) --> (X X (AP "close") &&& XXX (AP "close")))
 
 watertankφˢ :: SafetyAutomaton WatertankA WatertankL
@@ -223,10 +233,10 @@ watertankφˢ = ltlToAutomaton watertankφ
 -- | TODO
 data WatertankQ = WatertankQ0 | WatertankQ1 | WatertankQ2 deriving (Show, Eq, Ord)
 
-watertankφᵐ :: MDPAbstraction WatertankA WatertankL WatertankQ
+watertankφᵐ :: MDPAbstraction WatertankL WatertankA WatertankQ
 watertankφᵐ = undefined -- TODO from the paper
 
-watertankPreemptiveShield :: S WatertankL WatertankA WatertankA (Qₛ, WatertankQ)
+watertankPreemptiveShield :: S WatertankL WatertankA (Set WatertankA) (Qₛ, WatertankQ)
 watertankPreemptiveShield = computePreemptiveShield watertankφˢ watertankφᵐ
 
 
