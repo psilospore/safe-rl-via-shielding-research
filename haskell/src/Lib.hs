@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Lib where
@@ -9,16 +10,7 @@ module Lib where
 import Data.Set (Set, cartesianProduct, union, (\\), powerSet)
 import qualified Data.Set as Set
 
--- TODOs
--- Maybe start more top down instead so look at later pages and try to implement backwards.
--- I did the other approach and it was a bit harder to follow.
--- Maybe starting at preemptive shield which uses MDPs which then appl6y a shield to the actions (removing unsafe actions might make more sense)
--- OR do safety games but that's used in the above. If I struggle with the above I'll try this.
--- Section 6 contains main stuff I think I understand mostly everything up until then
-
-
 -- | Credits to TODO
--- Just guessing the types or stubbing them
 
 -- | Unicode characters
 -- You can setup latex input mode in emacs to use these
@@ -184,7 +176,6 @@ computePreemptiveShield φˢ φᵐ =
       -- 2. Compute the winning strategy TODO this is described in Shield Synthesis but I think we can use SMT for this part
       _W :: Set (Qₛ, _Qₘ)
       _W = undefined
-      -- Maybe this? not sure
       _W' :: Set Qₛ
       _W' = Set.map fst _W
       -- 3. For pre-emptive shielding translate G and W into a reactive system
@@ -195,16 +186,11 @@ computePreemptiveShield φˢ φᵐ =
       _S = S {
         _Q = _G
         , q₀ = _G'.q₀
-        -- A x L which we can get from the MDP abstraction
-        --, _Σᵢ = φᵐ._Σᵢ should just be type param
-        -- The output is a set of actions 2ᴬ
         , _Σ₀ = _2ᴬ
         , δ = \(g, (l, a)) -> _G'.δ (g, (l, a))
-        -- TODO hmm notation seems to omit
-       -- safety automation returns  , δ :: (Qₛ, (labelᵢ, action)) -> Qₛ
-        -- W is a (Q_S, _Q_m)
-        , λ = \((g, (l, _)):: ((Qₛ, _Qₘ), (label, action))) -> Set.filter (\a -> φˢ.δ (fst g, (l, a)) `elem` _W') _A
-        -- They also don't take the fst of g
+       -- TODO notation seems to omit taking the first component of g and of W otherwise using
+       -- Also the notation skips the action that's a wildcard
+        , λ = \((g, (l, _)):: ((Qₛ, _Qₘ), (label, action))) -> Set.filter (\a -> φˢ.δ (fst g, (l, a)) `elem` Set.map fst _W) _A
       }
   in _S
 
@@ -223,8 +209,8 @@ type L = Set Prop
 
 
 -- Actions are just {open, close}
-data WatertankA = OpenAction | CloseAction deriving (Show, Eq, Ord)
-data WatertankL = LevelLessThan99 | LevelBetween1And99 | LevelGreaterThan1 deriving (Show, Eq, Ord)
+data WatertankA = OpenAction | CloseAction deriving (Show, Eq, Ord, Enum, Bounded)
+data WatertankL = LevelLessThan99 | LevelBetween1And99 | LevelGreaterThan1 deriving (Show, Eq, Ord, Enum, Bounded)
 
 -- AP seems to equal Action | Labels
 -- I think we don't need this now we reformulated LTL to use APᵢ and AP₀
@@ -232,31 +218,48 @@ data WatertankL = LevelLessThan99 | LevelBetween1And99 | LevelGreaterThan1 deriv
 
 watertankφ :: LTL WatertankL WatertankA
 watertankφ = G (APᵢ LevelGreaterThan1) &&& G (APᵢ LevelLessThan99)
-   -- TODO &&& G ((AP "open" &&& X (AP "close")) --> (X X (AP "close") &&& XXX (AP "close")))
+   &&& G ((AP₀ OpenAction &&& X (AP₀ OpenAction)) --> (X (X (AP₀ CloseAction)) &&& X (X $ X (AP₀ CloseAction))))
 
 -- Output from Safety Automaton is an action
 watertankφˢ :: SafetyAutomaton WatertankL WatertankA
 watertankφˢ = ltlToAutomaton watertankφ
 
--- | TODO
-data WatertankQ = WatertankQ0 | WatertankQ1 | WatertankQ2 deriving (Show, Eq, Ord)
 
--- The MDP abstraction has Σᵢ = A x L
-watertankφᵐ :: MDPAbstraction WatertankA WatertankL WatertankQ
-watertankφᵐ = undefined -- TODO from the paper
+-- | The MDP abstraction has Σᵢ = A x L
+-- However figure 5 in the paper seems to have a different set of Labels that have 1 <= level < 2, 2 <= level < 3, ...
+-- We will go with a simplified environment with only 3 states
+watertankφᵐ :: MDPAbstraction WatertankA WatertankL WatertankQₘ
+watertankφᵐ = MDPAbstraction {
+    _Q = sumTypeToSet @WatertankQₘ
+    , q₀ = WatertankQ₀
+    , _Σᵢ = sumTypeToSet @WatertankA `cartesianProduct` sumTypeToSet @WatertankL
+    , δ = transitionFunction  -- Transition function defining how actions influence state transitions
+    -- Maybe just Q1 is safe?
+    , _F = Set.fromList [WatertankQ₁]
+  }
+  where
+    -- | Transition function for the MDP abstraction
+    transitionFunction :: (WatertankQₘ, (WatertankA, WatertankL)) -> WatertankQₘ
+    transitionFunction (WatertankQ₀, (OpenAction, LevelLessThan99)) = WatertankQ₁
+    transitionFunction (WatertankQ₀, (OpenAction, LevelBetween1And99)) = WatertankQ₂
+    transitionFunction (WatertankQ₁, (CloseAction, LevelGreaterThan1)) = WatertankQ₁
+    transitionFunction (WatertankQ₁, (CloseAction, _)) = WatertankQ₀
+    transitionFunction (state, _) = undefined -- Oh might wanna make these a Maybe this should be unsafe?
 
-watertankPreemptiveShield :: S WatertankL WatertankA (Set WatertankA) (Qₛ, WatertankQ)
+data WatertankQₘ = WatertankQ₀ | WatertankQ₁ | WatertankQ₂ deriving (Show, Eq, Ord, Enum, Bounded)
+
+watertankPreemptiveShield :: S WatertankL WatertankA (Set WatertankA) (Qₛ, WatertankQₘ)
 watertankPreemptiveShield = computePreemptiveShield watertankφˢ watertankφᵐ
 
 
 -- | Arbiter example from the shortened paper
 -- This seems to be a request based system where you can request A or B
 
-data ArbiterΣᵢ = RequestARequestB | DenyARequestB | RequestADenyB | DenyADenyB deriving (Show, Eq, Ord)
+data ArbiterΣᵢ = RequestARequestB | DenyARequestB | RequestADenyB | DenyADenyB deriving (Show, Eq, Ord, Enum, Bounded)
 
-data ArbiterΣₒ = GrantedAGrantedB | DeniedAGrantedB | GrantedADeniedB | DeniedADeniedB deriving (Show, Eq, Ord)
+data ArbiterΣₒ = GrantedAGrantedB | DeniedAGrantedB | GrantedADeniedB | DeniedADeniedB deriving (Show, Eq, Ord, Enum, Bounded)
 
-data ArbiterQ = QIdle | QGrantedA | QGrantedB deriving (Show, Eq, Ord)
+data ArbiterQ = QIdle | QGrantedA | QGrantedB deriving (Show, Eq, Ord, Enum, Bounded)
 
 -- Turn a sum type into a Set of all possible values
 sumTypeToSet :: (Ord a, Enum a, Bounded a) => Set a
