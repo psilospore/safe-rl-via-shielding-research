@@ -110,7 +110,7 @@ data Game _G _Σᵢ _Σₒ = Game {
     , q₀ :: _G -- Initial state
     , _Σᵢ :: Set _Σᵢ -- Input alphabet player's 0 alphabet?
     , _Σₒ :: Set _Σₒ -- Output alphabet player's 1 alphabet?
-    , δ :: Set (_G, (_Σᵢ, _Σₒ), _G) -- Transition function
+    , δ :: (_G, (_Σᵢ, _Σₒ)) -> _G -- Transition function
     , _Fᵍ :: Set _G -- Accepting states
 }
 
