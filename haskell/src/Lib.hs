@@ -10,7 +10,7 @@ module Lib where
 import Data.Set (Set, cartesianProduct, union, (\\), powerSet)
 import qualified Data.Set as Set
 
--- | Credits to TODO
+-- | Implementation of Safe Reinforcement via Shielding https://arxiv.org/abs/1708.08611
 
 -- | Unicode characters
 -- You can setup latex input mode in emacs to use these
@@ -108,9 +108,9 @@ ltlToAutomaton ltlFormula = SafetyAutomaton {
 data Game _G _Σᵢ _Σₒ = Game {
     _G :: Set _G -- Finite set of game states
     , q₀ :: _G -- Initial state
-    , _Σᵢ :: Set _Σᵢ -- Input alphabet
-    , _Σₒ :: Set _Σₒ -- Output alphabet
-    , δ :: (_G, (_Σᵢ, _Σₒ)) -> _G -- Transition function
+    , _Σᵢ :: Set _Σᵢ -- Input alphabet player's 0 alphabet?
+    , _Σₒ :: Set _Σₒ -- Output alphabet player's 1 alphabet?
+    , δ :: Set (_G, (_Σᵢ, _Σₒ), _G) -- Transition function
     , _Fᵍ :: Set _G -- Accepting states
 }
 
@@ -193,6 +193,18 @@ computePreemptiveShield φˢ φᵐ =
         , λ = \((g, (l, _)):: ((Qₛ, _Qₘ), (label, action))) -> Set.filter (\a -> φˢ.δ (fst g, (l, a)) `elem` Set.map fst _W) _A
       }
   in _S
+
+--1. introduce a bottom state (In the paper they never introduce this but in the video they do)
+-- Find transitions that lead
+
+-- | Compute Winning Region O(|G|² x |Σᵢ| x |Σₒ|)
+-- Computes the winning region for a given safety game
+-- LLM generated verify correctness
+-- I believe BDDs can be used instead for efficency. They discuss it briefly for parity games in Intro to Reactive Synthesis but do not go into details
+-- They introduce parity games over safety word automaton we have the later so perhaps it's even simplier to use BDDs
+computeWinningRegion :: (Ord g, Ord label, Ord action) => Game g label action -> Set g
+computeWinningRegion game = undefined
+
 
 -- Optionally remove states that are not reachable from the initial state
 -- prune :: S -> S
