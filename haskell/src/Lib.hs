@@ -194,8 +194,6 @@ computePreemptiveShield φˢ φᵐ =
       }
   in _S
 
---1. introduce a bottom state (In the paper they never introduce this but in the video they do)
--- Find transitions that lead
 
 -- | Compute Winning Region O(|G|² x |Σᵢ| x |Σₒ|)
 -- Computes the winning region for a given safety game
@@ -204,6 +202,8 @@ computePreemptiveShield φˢ φᵐ =
 -- They introduce parity games over safety word automaton we have the later so perhaps it's even simplier to use BDDs
 computeWinningRegion :: (Ord g, Ord label, Ord action) => Game g label action -> Set g
 computeWinningRegion game = undefined
+--1. introduce a bottom state (In the paper they never mention this but in the video they do)
+-- Find transitions that lead
 
 
 -- Optionally remove states that are not reachable from the initial state
