@@ -55,7 +55,7 @@ data S _Σᵢ¹ _Σᵢ² _Σ₀ _Q = S {
 data SafetyAutomaton _Σᵢ _Σₒ = SafetyAutomaton {
   _Q :: Set Qₛ -- States
   , q₀:: Qₛ
-  , δ :: (Qₛ, (_Σᵢ, _Σₒ)) -> Qₛ
+  , δ :: (Qₛ, (_Σᵢ, _Σₒ)) -> Maybe Qₛ
   , _F :: Set Qₛ -- Set of safe states where F ⊆ Q
 }
 
@@ -70,7 +70,7 @@ data MDPAbstraction _Σᵢ¹ _Σᵢ² _Q = MDPAbstraction {
   _Q :: Set _Q
   , q₀ :: _Q
   , _Σᵢ :: Set (_Σᵢ¹, _Σᵢ²)
-  , δ :: (_Q, (_Σᵢ¹, _Σᵢ²)) -> _Q
+  , δ :: (_Q, (_Σᵢ¹, _Σᵢ²)) -> Maybe _Q
   , _F :: Set _Q
 }
 
@@ -103,15 +103,22 @@ ltlToAutomaton ltlFormula = SafetyAutomaton {
     safeStates :: Set Qₛ
     safeStates = undefined -- filterSafeStates states ltlFormula
 
+data Player q = SystemPlayer q | EnvironmentPlayer q deriving (Show, Eq, Ord)
+
 -- | 2 player Safety Game G
--- Section 6 describes tuple
-data Game _G _Σᵢ _Σₒ = Game {
-    _G :: Set _G -- Finite set of game states
-    , q₀ :: _G -- Initial state
-    , _Σᵢ :: Set _Σᵢ -- Input alphabet player's 0 alphabet?
-    , _Σₒ :: Set _Σₒ -- Output alphabet player's 1 alphabet?
-    , δ :: (_G, (_Σᵢ, _Σₒ)) -> _G -- Transition function
-    , _Fᵍ :: Set _G -- Accepting states
+-- Section 6 describes tuple however this seems to be different from a safety game
+-- such as described here:
+-- We introduce intermediate states that the environment player can take a step from
+-- A Maybe is used for environment transitions to represent a transition to bottom
+data Game _Gₛ _Gₑ _Σᵢ _Σₒ = Game {
+    _Gₛ :: Set _Gₛ -- Finite set of game states
+    , _Gₑ :: Set _Gₑ -- Finite set of Environment states
+    , q₀ :: _Gₛ -- Initial state
+    , _Σᵢ :: Set _Σᵢ -- Input alphabet
+    , _Σₒ :: Set _Σₒ -- Output alphabet
+    , δₛ :: (_Gₛ, _Σᵢ) -> Maybe _Gₑ -- System Transition function
+    , δₑ :: (_G, _Σₒ) -> Maybe _Gₛ -- Environment Transition function
+    , _Fᵍ :: Set _Gₛ -- Accepting states
 }
 
 type Σ = Set Int
@@ -202,6 +209,14 @@ computePreemptiveShield φˢ φᵐ =
 -- They introduce parity games over safety word automaton we have the later so perhaps it's even simplier to use BDDs
 computeWinningRegion :: (Ord g, Ord label, Ord action) => Game g label action -> Set g
 computeWinningRegion game = undefined
+
+  -- Set of (alphabet, state, Maybe state)
+  let currentInvalidTransitions = (\state, alphabet -> (state, alphabet, game._δ state alphabet)) <$> game._G `cartesianProduct` game._Σ in
+    -- Everything that leads to Bottom
+      invalidTransitions = Set.filter (\(_, _, nextState) -> nextState == Nothing) currentInvalidTransitions
+
+
+    
 --1. introduce a bottom state (In the paper they never mention this but in the video they do)
 -- Find transitions that lead
 
