@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE BlockArguments #-}
 
 module Lib where
 
@@ -117,7 +118,7 @@ data Game _Gₛ _Gₑ _Σᵢ _Σₒ = Game {
     , _Σᵢ :: Set _Σᵢ -- Input alphabet
     , _Σₒ :: Set _Σₒ -- Output alphabet
     , δₛ :: (_Gₛ, _Σᵢ) -> Maybe _Gₑ -- System Transition function
-    , δₑ :: (_G, _Σₒ) -> Maybe _Gₛ -- Environment Transition function
+    , δₑ :: (_Gₑ, _Σₒ) -> Maybe _Gₛ -- Environment Transition function
     , _Fᵍ :: Set _Gₛ -- Accepting states
 }
 
@@ -134,7 +135,7 @@ type Prop = String
 -- | LTL Formula data type
 -- AP = APᵢ union AP₀ the set of atomic propositions
 data LTL _APᵢ _AP₀
-  = APᵢ _APᵢ -- TODO maybe merge these first two?
+  = APᵢ _APᵢ
   | AP₀ _AP₀
   | Not (LTL _APᵢ _AP₀)
   | And (LTL _APᵢ _AP₀) (LTL _APᵢ _AP₀)
@@ -170,9 +171,11 @@ computePreemptiveShield φˢ φᵐ =
       _L = Set.map snd  φᵐ._Σᵢ -- Labels
       _G :: Set (Qₛ, _Qₘ) -- A product of both automata's states
       _G = Set.cartesianProduct φˢ._Q φᵐ._Q
-      _G' :: Game (Qₛ, _Qₘ) label action
+      -- TODO double check this _Gₑ and _Gₛ isn't flipped
+      _G' :: Game Qₛ _Qₘ label action
       _G' = Game {
-          _G = φˢ._Q `cartesianProduct` φᵐ._Q
+          _Gₑ = φˢ._Q
+          , _Gₛ = φᵐ._Q
           , q₀ = (φˢ.q₀, φᵐ.q₀)
           , _Σᵢ = _L
           ,  _Σₒ = _A
@@ -209,11 +212,12 @@ computePreemptiveShield φˢ φᵐ =
 -- They introduce parity games over safety word automaton we have the later so perhaps it's even simplier to use BDDs
 computeWinningRegion :: (Ord g, Ord label, Ord action) => Game g label action -> Set g
 computeWinningRegion game = undefined
-
   -- Set of (alphabet, state, Maybe state)
-  let currentInvalidTransitions = (\state, alphabet -> (state, alphabet, game._δ state alphabet)) <$> game._G `cartesianProduct` game._Σ in
+  let currentInvalidTransitions = (\state alphabet -> (state, alphabet, game._δ state alphabet)) <$> game._G `cartesianProduct` game._Σ
     -- Everything that leads to Bottom
       invalidTransitions = Set.filter (\(_, _, nextState) -> nextState == Nothing) currentInvalidTransitions
+  in
+    undefined
 
 
     
