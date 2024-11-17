@@ -25,7 +25,8 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      ShieldingV1
+      ShieldingV2
   other-modules:
       Paths_haskell
   autogen-modules:

@@ -6,10 +6,11 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE BlockArguments #-}
 
-module Lib where
+module ShieldingV2 where
 
 import Data.Set (Set, cartesianProduct, union, (\\), powerSet)
 import qualified Data.Set as Set
+import Data.Maybe
 
 -- | Implementation of Safe Reinforcement via Shielding https://arxiv.org/abs/1708.08611
 
@@ -78,31 +79,31 @@ data MDPAbstraction _Σᵢ¹ _Σᵢ² _Q = MDPAbstraction {
 
 -- | Convert an LTL formula to a Safety Automaton
 -- TODO this is LLM generated might be incorrect
-ltlToAutomaton :: forall _APᵢ _AP₀ _Σᵢ _Σₒ. LTL _APᵢ _AP₀ -> SafetyAutomaton _Σᵢ _Σₒ
-ltlToAutomaton ltlFormula = SafetyAutomaton {
-    _Q = states,                  -- The set of all possible states (from LTL subformulas) this is random in the paper it's qₐ, q_b, q_c, ...
-    q₀ = initialState,             -- Initial state based on the LTL formula
-    δ = transitionFunction,        -- Transition function based on Σᵢ × Σₒ
-    _F = safeStates                -- Set of safe states
-  }
-  where
-    -- Step 1: Define states based on LTL subformulas
-    states :: Set Qₛ
-    states = undefined -- TODO
+-- ltlToAutomaton :: forall _APᵢ _AP₀ _Σᵢ _Σₒ. LTL _APᵢ _AP₀ -> SafetyAutomaton _Σᵢ _Σₒ
+-- ltlToAutomaton ltlFormula = SafetyAutomaton {
+--     _Q = states,                  -- The set of all possible states (from LTL subformulas) this is random in the paper it's qₐ, q_b, q_c, ...
+--     q₀ = initialState,             -- Initial state based on the LTL formula
+--     δ = transitionFunction,        -- Transition function based on Σᵢ × Σₒ
+--     _F = safeStates                -- Set of safe states
+--   }
+--   where
+--     -- Step 1: Define states based on LTL subformulas
+--     states :: Set Qₛ
+--     states = undefined -- TODO
 
-    -- Step 2: Define the initial state based on the formula
-    initialState :: Qₛ
-    initialState = undefined -- getInitialState ltlFormula
+--     -- Step 2: Define the initial state based on the formula
+--     initialState :: Qₛ
+--     initialState = undefined -- getInitialState ltlFormula
 
-    -- Step 3: Transition function (maps a state and input to a new state)
-    transitionFunction :: (Qₛ, (_Σᵢ, _Σₒ)) -> Qₛ
-    transitionFunction (q, (_Σᵢ, _Σₒ)) = undefined
-      -- determineNextState q (_Σᵢ, _Σₒ)
+--     -- Step 3: Transition function (maps a state and input to a new state)
+--     transitionFunction :: (Qₛ, (_Σᵢ, _Σₒ)) -> Qₛ
+--     transitionFunction (q, (_Σᵢ, _Σₒ)) = undefined
+--       -- determineNextState q (_Σᵢ, _Σₒ)
 
-    -- Step 4: Define safe states
-    -- Not sure if this is correct
-    safeStates :: Set Qₛ
-    safeStates = undefined -- filterSafeStates states ltlFormula
+--     -- Step 4: Define safe states
+--     -- Not sure if this is correct
+--     safeStates :: Set Qₛ
+--     safeStates = undefined -- filterSafeStates states ltlFormula
 
 data Player q = SystemPlayer q | EnvironmentPlayer q deriving (Show, Eq, Ord)
 
@@ -114,7 +115,7 @@ data Player q = SystemPlayer q | EnvironmentPlayer q deriving (Show, Eq, Ord)
 data Game _Gₛ _Gₑ _Σᵢ _Σₒ = Game {
     _Gₛ :: Set _Gₛ -- Finite set of game states
     , _Gₑ :: Set _Gₑ -- Finite set of Environment states
-    , q₀ :: _Gₛ -- Initial state
+    , q₀ :: (_Gₛ, _Gₑ) -- Initial state
     , _Σᵢ :: Set _Σᵢ -- Input alphabet
     , _Σₒ :: Set _Σₒ -- Output alphabet
     , δₛ :: (_Gₛ, _Σᵢ) -> Maybe _Gₑ -- System Transition function
@@ -174,14 +175,16 @@ computePreemptiveShield φˢ φᵐ =
       -- TODO double check this _Gₑ and _Gₛ isn't flipped
       _G' :: Game Qₛ _Qₘ label action
       _G' = Game {
-          _Gₑ = φˢ._Q
-          , _Gₛ = φᵐ._Q
+          _Gₑ = φᵐ._Q
+          , _Gₛ = φˢ._Q
           , q₀ = (φˢ.q₀, φᵐ.q₀)
           , _Σᵢ = _L
           ,  _Σₒ = _A
-          , δ = \((q, qₘ), (l , a)) -> (φˢ.δ (q, (l, a)), φᵐ.δ (qₘ, (a, l)))
-                                                                                                -- ^^  paper says this is (l, a) maybe they have that flipped? or I am wrong
-          , _Fᵍ = (φˢ._F `cartesianProduct` φᵐ._Q) `union` (φˢ._Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
+          -- TODO fix all of these later
+          -- , δ = \((q, qₘ), (l , a)) -> (φˢ.δ (q, (l, a)), φᵐ.δ (qₘ, (a, l)))
+          , δₛ = undefined
+          , δₑ = undefined
+          , _Fᵍ = undefined -- (φˢ._F `cartesianProduct` φᵐ._Q) `union` (φˢ._Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
       }
       -- 2. Compute the winning strategy TODO this is described in Shield Synthesis but I think we can use SMT for this part
       _W :: Set (Qₛ, _Qₘ)
@@ -197,10 +200,10 @@ computePreemptiveShield φˢ φᵐ =
         _Q = _G
         , q₀ = _G'.q₀
         , _Σ₀ = _2ᴬ
-        , δ = \(g, (l, a)) -> _G'.δ (g, (l, a))
+        , δ = undefined -- \(g, (l, a)) -> _G'.δ (g, (l, a))
        -- TODO notation seems to omit taking the first component of g and of W otherwise using
        -- Also the notation skips the action that's a wildcard
-        , λ = \((g, (l, _)):: ((Qₛ, _Qₘ), (label, action))) -> Set.filter (\a -> φˢ.δ (fst g, (l, a)) `elem` Set.map fst _W) _A
+        , λ = undefined -- \((g, (l, _)):: ((Qₛ, _Qₘ), (label, action))) -> Set.filter (\a -> φˢ.δ (fst g, (l, a)) `elem` Set.map fst _W) _A
       }
   in _S
 
@@ -210,17 +213,15 @@ computePreemptiveShield φˢ φᵐ =
 -- LLM generated verify correctness
 -- I believe BDDs can be used instead for efficency. They discuss it briefly for parity games in Intro to Reactive Synthesis but do not go into details
 -- They introduce parity games over safety word automaton we have the later so perhaps it's even simplier to use BDDs
-computeWinningRegion :: (Ord g, Ord label, Ord action) => Game g label action -> Set g
+computeWinningRegion :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
 computeWinningRegion game = undefined
-  -- Set of (alphabet, state, Maybe state)
-  let currentInvalidTransitions = (\state alphabet -> (state, alphabet, game._δ state alphabet)) <$> game._G `cartesianProduct` game._Σ
-    -- Everything that leads to Bottom
-      invalidTransitions = Set.filter (\(_, _, nextState) -> nextState == Nothing) currentInvalidTransitions
-  in
-    undefined
+  -- -- Set of (alphabet, state, Maybe state)
+  -- let currentInvalidTransitions = (\state alphabet -> (state, alphabet, game._δ state alphabet)) <$> game._G `cartesianProduct` game._Σ
+  --   -- Everything that leads to Bottom
+  --       invalidTransitions = Set.filter (\(_, _, nextState) -> isNothing nextState) currentInvalidTransitions
+  -- in
+  --   undefined
 
-
-    
 --1. introduce a bottom state (In the paper they never mention this but in the video they do)
 -- Find transitions that lead
 
@@ -253,7 +254,7 @@ watertankφ = G (APᵢ LevelGreaterThan1) &&& G (APᵢ LevelLessThan99)
 
 -- Output from Safety Automaton is an action
 watertankφˢ :: SafetyAutomaton WatertankL WatertankA
-watertankφˢ = ltlToAutomaton watertankφ
+watertankφˢ = undefined --TODO ltlToAutomaton watertankφ
 
 
 -- | The MDP abstraction has Σᵢ = A x L
@@ -270,12 +271,12 @@ watertankφᵐ = MDPAbstraction {
   }
   where
     -- | Transition function for the MDP abstraction
-    transitionFunction :: (WatertankQₘ, (WatertankA, WatertankL)) -> WatertankQₘ
-    transitionFunction (WatertankQ₀, (OpenAction, LevelLessThan99)) = WatertankQ₁
-    transitionFunction (WatertankQ₀, (OpenAction, LevelBetween1And99)) = WatertankQ₂
-    transitionFunction (WatertankQ₁, (CloseAction, LevelGreaterThan1)) = WatertankQ₁
-    transitionFunction (WatertankQ₁, (CloseAction, _)) = WatertankQ₀
-    transitionFunction (state, _) = undefined -- Oh might wanna make these a Maybe this should be unsafe?
+    transitionFunction :: (WatertankQₘ, (WatertankA, WatertankL)) -> Maybe WatertankQₘ
+    transitionFunction (WatertankQ₀, (OpenAction, LevelLessThan99)) = Just WatertankQ₁
+    transitionFunction (WatertankQ₀, (OpenAction, LevelBetween1And99)) = Just WatertankQ₂
+    transitionFunction (WatertankQ₁, (CloseAction, LevelGreaterThan1)) = Just WatertankQ₁
+    transitionFunction (WatertankQ₁, (CloseAction, _)) = Just WatertankQ₀
+    transitionFunction _ = Nothing
 
 data WatertankQₘ = WatertankQ₀ | WatertankQ₁ | WatertankQ₂ deriving (Show, Eq, Ord, Enum, Bounded)
 
