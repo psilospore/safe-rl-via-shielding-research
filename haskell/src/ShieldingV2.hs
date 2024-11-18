@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE BlockArguments #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use tuple-section" #-}
 
 module ShieldingV2 where
 
@@ -214,13 +216,21 @@ computePreemptiveShield φˢ φᵐ =
 -- I believe BDDs can be used instead for efficency. They discuss it briefly for parity games in Intro to Reactive Synthesis but do not go into details
 -- They introduce parity games over safety word automaton we have the later so perhaps it's even simplier to use BDDs
 computeWinningRegion :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
-computeWinningRegion game = undefined
-  -- -- Set of (alphabet, state, Maybe state)
-  -- let currentInvalidTransitions = (\state alphabet -> (state, alphabet, game._δ state alphabet)) <$> game._G `cartesianProduct` game._Σ
-  --   -- Everything that leads to Bottom
-  --       invalidTransitions = Set.filter (\(_, _, nextState) -> isNothing nextState) currentInvalidTransitions
-  -- in
-  --   undefined
+computeWinningRegion game =
+  -- 1. Elimate transitions from environment states _Gₑ to Bottom
+  -- δₑ :: (_Gₑ, _Σₒ) -> Maybe _Gₛ
+  -- This seems dumb and inefficent but I'm going to keep going with it
+  let nextδₑ = (\state alphabet -> (\nextState -> (state, alphabet, nextState)) <$> game._δₛ state alphabet) <$> game._Gₑ `cartesianProduct` game._Σ₀ in
+  -- 2. Elimate transitions from system states Gₛ to Bottom
+
+      -- Everything that leads to Bottom. I assume Nothing is Bottom I think that's true
+      -- invalidTransitions = Set.filter (\(_, _, nextState) -> isNothing nextState) currentInvalidTransitions
+  -- 3. Do we have any states with no transitions?
+  in
+    computeWinningRegion
+
+-- Based on LLM generated one if we want something more efficent
+-- computeWinningRegion2 :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
 
 --1. introduce a bottom state (In the paper they never mention this but in the video they do)
 -- Find transitions that lead

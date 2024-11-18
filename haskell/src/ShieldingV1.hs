@@ -206,10 +206,13 @@ computePreemptiveShield φˢ φᵐ =
 -- I believe BDDs can be used instead for efficency. They discuss it briefly for parity games in Intro to Reactive Synthesis but do not go into details
 -- They introduce parity games over safety word automaton we have the later so perhaps it's even simplier to use BDDs
 computeWinningRegion :: (Ord g, Ord label, Ord action) => Game g label action -> Set g
-computeWinningRegion game = undefined
---1. introduce a bottom state (In the paper they never mention this but in the video they do)
--- Find transitions that lead
-
+computeWinningRegion game =
+  -- Set of (alphabet, state, Maybe state)
+  let currentInvalidTransitions = (\state alphabet -> (state, alphabet, game._δ state alphabet)) <$> game._G `cartesianProduct` game._Σ
+      -- Everything that leads to Bottom. I assume Nothing is Bottom I think that's true
+      -- invalidTransitions = Set.filter (\(_, _, nextState) -> isNothing nextState) currentInvalidTransitions
+  in
+    undefined
 
 -- Optionally remove states that are not reachable from the initial state
 -- prune :: S -> S
