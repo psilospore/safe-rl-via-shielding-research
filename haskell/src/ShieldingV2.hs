@@ -1,18 +1,19 @@
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE UnicodeSyntax #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Use tuple-section" #-}
 
 module ShieldingV2 where
 
-import Data.Set (Set, cartesianProduct, union, (\\), powerSet)
-import qualified Data.Set as Set
 import Data.Maybe
+import Data.Set (Set, cartesianProduct, powerSet, union, (\\))
+import Data.Set qualified as Set
 
 -- | Implementation of Safe Reinforcement via Shielding https://arxiv.org/abs/1708.08611
 
@@ -116,23 +117,23 @@ data MDPAbstraction _Σᵢ¹ _Σᵢ² _Q = MDPAbstraction {
 -- Player 1 chooses outputs ∈ Σₒ
 -- If player 1 is the system player and player 0 is the environment player
 -- then the winning strategy is a Mealy machine
-data Game _G₀ _G₁ _Σᵢ _Σₒ = Game {
-    _G₀ :: Set _G₀ -- Finite set of Player 0 states
-    , _G₁ :: Set _G₁ -- Finite set of Player 1states
-    , q₀ :: (_G₀, _G₁) -- Initial state
-    , _Σᵢ :: Set _Σᵢ -- Input alphabet
-    , _Σₒ :: Set _Σₒ -- Output alphabet
-    , δₛ :: (_G₀, _Σᵢ) -> Maybe _G₁ -- System Transition function
-    , δₑ :: (_G₁, _Σₒ) -> Maybe _G₀ -- Environment Transition function
-    , _Fᵍ :: Set _G₀ -- Accepting states. This is the Goal
-}
+-- Also switched to relational encoding for transitions
+data Game _G₀ _G₁ _Σᵢ _Σₒ = Game
+  { _G₀ :: Set _G₀, -- Finite set of Player 0 states
+    _G₁ :: Set _G₁, -- Finite set of Player 1 states
+    q₀ :: (_G₀, _G₁), -- Initial state
+    _Σᵢ :: Set _Σᵢ, -- Input alphabet
+    _Σₒ :: Set _Σₒ, -- Output alphabet
+    δ₀ :: Set (_G₀, _Σᵢ, _G₁), -- Player 0 Transition function
+    δ₁ :: Set (_G₁, _Σₒ, _G₀), -- Player 1 Transition function
+    _Fᵍ :: Set _G₀ -- Accepting states. This is the Goal
+  }
 
 type Σ = Set Int
 
 -- L but maybe just for preemptive shields
 -- e.g.  {level < 1, 1 ≤ level ≤ 99, level > 99}
 -- type Σᵢ¹ = L
-
 
 -- | Propositions TODO not sure how to represent this
 type Prop = String
@@ -154,7 +155,9 @@ data LTL _APᵢ _AP₀
 
 -- | Sugar
 (&&&) = And
+
 (|||) = Or
+
 (-->) = Implies
 
 -- Example in paper
@@ -162,7 +165,7 @@ data LTLExampleAP = ExR | ExG deriving (Show, Eq, Ord)
 
 -- Not sure which are AP₀ and APᵢ in this context
 exampleLtlFormula :: LTL () LTLExampleAP
-exampleLtlFormula = G ( AP₀ ExR ||| X (AP₀ ExG))
+exampleLtlFormula = G (AP₀ ExR ||| X (AP₀ ExG))
 
 -- | Section 6 a shield is computed from an abstraction of the MDP φᵐ and the safety automaton φˢ
 -- φˢ has Σ = Σᵢ x Σₒ and Σₒ = action
@@ -232,30 +235,35 @@ computePreemptiveShield φˢ φᵐ =
 --     computeWinningRegion
 
 -- Apply these two rules at every step
--- Whenever there is a  choice for player 1 that leads to a bad choice we can remove this choice
+-- Whenever there is a choice for player 1 that leads to a bad choice we can remove this choice
 -- Whenever from one position there is a choice of player 0 that leads to a position of player 1
 -- that has no outgoing transitions we can turn it into a bottom
 -- We can extract the winning strategy by choosing 1 choice from player 1 in each intermediate strategy
 computeWinningRegion :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
-computeWinningRegion game = undefined
-  player1Turn
-  player0Turn
+computeWinningRegion game =
+  let game' = player1Turn game
+      game'' = player0Turn game'
+   in if game == game' && game' == game'' -- not sure if this is the right base case
+        then game -- Well I guess we want the game
+        else computeWinningRegion game''
   where
-    player0Turn = undefined
     -- See states that lead to bottom and remove them
     -- If there are no outgoing transitions turn the current state to a bottom
-    player1Turn = undefined
     -- Remove transitions that lead to bottom
-    introduceBottomStates = undefined
+    -- Remove states that lead to bottom
+    player1Turn game =
+      let (newTransitions, removedTransitions) = Set.partition (\(_, _, player0State) -> Set.member game._G₀ player0State) game.δ₁
+          player0StatesToRemove = (fst <$> removedTransitions) `Set.difference` (fst <$> newTransitions)
+          newStates = game._G₀ `Set.difference` player0StatesToRemove
+       in game {δ₀ = newTransitions, _G₀ = newStates}
 
-
+    player0Turn game = undefined -- game.δ₀
 
 -- Based on LLM generated one if we want something more efficent
 -- computeWinningRegion2 :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
 
---1. introduce a bottom state (In the paper they never mention this but in the video they do)
+-- 1. introduce a bottom state (In the paper they never mention this but in the video they do)
 -- Find transitions that lead
-
 
 -- Optionally remove states that are not reachable from the initial state
 -- prune :: S -> S
@@ -326,4 +334,4 @@ data ArbiterQ = QIdle | QGrantedA | QGrantedB deriving (Show, Eq, Ord, Enum, Bou
 
 -- Turn a sum type into a Set of all possible values
 sumTypeToSet :: (Ord a, Enum a, Bounded a) => Set a
-sumTypeToSet = Set.fromList [minBound..maxBound]
+sumTypeToSet = Set.fromList [minBound .. maxBound]
