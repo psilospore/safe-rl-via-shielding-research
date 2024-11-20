@@ -107,22 +107,24 @@ data MDPAbstraction _Σᵢ¹ _Σᵢ² _Q = MDPAbstraction {
 --     safeStates :: Set Qₛ
 --     safeStates = undefined -- filterSafeStates states ltlFormula
 
-data Player q = SystemPlayer q | EnvironmentPlayer q deriving (Show, Eq, Ord)
-
 -- | 2 player Safety Game G
 -- Section 6 describes tuple however this seems to be different from a safety game
 -- such as described here:
 -- We introduce intermediate states that the environment player can take a step from
 -- A Maybe is used for environment transitions to represent a transition to bottom
-data Game _Gₛ _Gₑ _Σᵢ _Σₒ = Game {
-    _Gₛ :: Set _Gₛ -- Finite set of game states
-    , _Gₑ :: Set _Gₑ -- Finite set of Environment states
-    , q₀ :: (_Gₛ, _Gₑ) -- Initial state
+-- Player 0 chooses inputs ∈ Σᵢ
+-- Player 1 chooses outputs ∈ Σₒ
+-- If player 1 is the system player and player 0 is the environment player
+-- then the winning strategy is a Mealy machine
+data Game _G₀ _G₁ _Σᵢ _Σₒ = Game {
+    _G₀ :: Set _G₀ -- Finite set of Player 0 states
+    , _G₁ :: Set _G₁ -- Finite set of Player 1states
+    , q₀ :: (_G₀, _G₁) -- Initial state
     , _Σᵢ :: Set _Σᵢ -- Input alphabet
     , _Σₒ :: Set _Σₒ -- Output alphabet
-    , δₛ :: (_Gₛ, _Σᵢ) -> Maybe _Gₑ -- System Transition function
-    , δₑ :: (_Gₑ, _Σₒ) -> Maybe _Gₛ -- Environment Transition function
-    , _Fᵍ :: Set _Gₛ -- Accepting states
+    , δₛ :: (_G₀, _Σᵢ) -> Maybe _G₁ -- System Transition function
+    , δₑ :: (_G₁, _Σₒ) -> Maybe _G₀ -- Environment Transition function
+    , _Fᵍ :: Set _G₀ -- Accepting states. This is the Goal
 }
 
 type Σ = Set Int
@@ -177,8 +179,8 @@ computePreemptiveShield φˢ φᵐ =
       -- TODO double check this _Gₑ and _Gₛ isn't flipped
       _G' :: Game Qₛ _Qₘ label action
       _G' = Game {
-          _Gₑ = φᵐ._Q
-          , _Gₛ = φˢ._Q
+          _G₁ = φᵐ._Q
+          , _G₀ = φˢ._Q
           , q₀ = (φˢ.q₀, φᵐ.q₀)
           , _Σᵢ = _L
           ,  _Σₒ = _A
@@ -215,19 +217,38 @@ computePreemptiveShield φˢ φᵐ =
 -- LLM generated verify correctness
 -- I believe BDDs can be used instead for efficency. They discuss it briefly for parity games in Intro to Reactive Synthesis but do not go into details
 -- They introduce parity games over safety word automaton we have the later so perhaps it's even simplier to use BDDs
-computeWinningRegion :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
-computeWinningRegion game =
-  -- 1. Elimate transitions from environment states _Gₑ to Bottom
-  -- δₑ :: (_Gₑ, _Σₒ) -> Maybe _Gₛ
-  -- This seems dumb and inefficent but I'm going to keep going with it
-  let nextδₑ = (\state alphabet -> (\nextState -> (state, alphabet, nextState)) <$> game._δₛ state alphabet) <$> game._Gₑ `cartesianProduct` game._Σ₀ in
-  -- 2. Elimate transitions from system states Gₛ to Bottom
+-- computeWinningRegion :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
+-- computeWinningRegion game =
+--   -- 1. Elimate transitions from environment states _Gₑ to Bottom
+--   -- δₑ :: (_Gₑ, _Σₒ) -> Maybe _Gₛ
+--   -- This seems dumb and inefficent but I'm going to keep going with it
+--   let nextδₑ = (\state alphabet -> (\nextState -> (state, alphabet, nextState)) <$> game._δₛ state alphabet) <$> game._Gₑ `cartesianProduct` game._Σ₀ in
+--   -- 2. Elimate transitions from system states Gₛ to Bottom
 
-      -- Everything that leads to Bottom. I assume Nothing is Bottom I think that's true
-      -- invalidTransitions = Set.filter (\(_, _, nextState) -> isNothing nextState) currentInvalidTransitions
-  -- 3. Do we have any states with no transitions?
-  in
-    computeWinningRegion
+--       -- Everything that leads to Bottom. I assume Nothing is Bottom I think that's true
+--       -- invalidTransitions = Set.filter (\(_, _, nextState) -> isNothing nextState) currentInvalidTransitions
+--   -- 3. Do we have any states with no transitions?
+--   in
+--     computeWinningRegion
+
+-- Apply these two rules at every step
+-- Whenever there is a  choice for player 1 that leads to a bad choice we can remove this choice
+-- Whenever from one position there is a choice of player 0 that leads to a position of player 1
+-- that has no outgoing transitions we can turn it into a bottom
+-- We can extract the winning strategy by choosing 1 choice from player 1 in each intermediate strategy
+computeWinningRegion :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
+computeWinningRegion game = undefined
+  player1Turn
+  player0Turn
+  where
+    player0Turn = undefined
+    -- See states that lead to bottom and remove them
+    -- If there are no outgoing transitions turn the current state to a bottom
+    player1Turn = undefined
+    -- Remove transitions that lead to bottom
+    introduceBottomStates = undefined
+
+
 
 -- Based on LLM generated one if we want something more efficent
 -- computeWinningRegion2 :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
