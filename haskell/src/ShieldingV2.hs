@@ -5,15 +5,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UnicodeSyntax #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Use tuple-section" #-}
 
 module ShieldingV2 where
 
 import Data.Maybe
 import Data.Set (Set, cartesianProduct, powerSet, union, (\\))
-import Data.Set qualified as Set
+import qualified Data.Set as Set
 
 -- | Implementation of Safe Reinforcement via Shielding https://arxiv.org/abs/1708.08611
 
@@ -127,7 +124,7 @@ data Game _G₀ _G₁ _Σᵢ _Σₒ = Game
     δ₀ :: Set (_G₀, _Σᵢ, _G₁), -- Player 0 Transition function
     δ₁ :: Set (_G₁, _Σₒ, _G₀), -- Player 1 Transition function
     _Fᵍ :: Set _G₀ -- Accepting states. This is the Goal
-  }
+  } deriving (Eq, Show)
 
 type Σ = Set Int
 
@@ -176,23 +173,24 @@ computePreemptiveShield φˢ φᵐ =
   let _A :: Set action
       _A = Set.map fst φᵐ._Σᵢ -- Actions
       _L :: Set label
-      _L = Set.map snd  φᵐ._Σᵢ -- Labels
+      _L = Set.map snd φᵐ._Σᵢ -- Labels
       _G :: Set (Qₛ, _Qₘ) -- A product of both automata's states
       _G = Set.cartesianProduct φˢ._Q φᵐ._Q
       -- TODO double check this _Gₑ and _Gₛ isn't flipped
       _G' :: Game Qₛ _Qₘ label action
-      _G' = Game {
-          _G₁ = φᵐ._Q
-          , _G₀ = φˢ._Q
-          , q₀ = (φˢ.q₀, φᵐ.q₀)
-          , _Σᵢ = _L
-          ,  _Σₒ = _A
-          -- TODO fix all of these later
-          -- , δ = \((q, qₘ), (l , a)) -> (φˢ.δ (q, (l, a)), φᵐ.δ (qₘ, (a, l)))
-          , δₛ = undefined
-          , δₑ = undefined
-          , _Fᵍ = undefined -- (φˢ._F `cartesianProduct` φᵐ._Q) `union` (φˢ._Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
-      }
+      _G' =
+        Game
+          { _G₁ = φᵐ._Q,
+            _G₀ = φˢ._Q,
+            q₀ = (φˢ.q₀, φᵐ.q₀),
+            _Σᵢ = _L,
+            _Σₒ = _A,
+            -- TODO fix all of these later
+            -- , δ = \((q, qₘ), (l , a)) -> (φˢ.δ (q, (l, a)), φᵐ.δ (qₘ, (a, l)))
+            δ₀ = undefined,
+            δ₁ = undefined,
+            _Fᵍ = undefined -- (φˢ._F `cartesianProduct` φᵐ._Q) `union` (φˢ._Q `cartesianProduct` (φᵐ._F \\ φᵐ._F))
+          }
       -- 2. Compute the winning strategy TODO this is described in Shield Synthesis but I think we can use SMT for this part
       _W :: Set (Qₛ, _Qₘ)
       _W = undefined
@@ -239,7 +237,7 @@ computePreemptiveShield φˢ φᵐ =
 -- Whenever from one position there is a choice of player 0 that leads to a position of player 1
 -- that has no outgoing transitions we can turn it into a bottom
 -- We can extract the winning strategy by choosing 1 choice from player 1 in each intermediate strategy
-computeWinningRegion :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
+computeWinningRegion :: forall _G₀ _G₁ label action. (Ord _G₀, Ord _G₁, Ord label, Ord action) => Game _G₀ _G₁ label action -> Game _G₀ _G₁ label action -- TODO should be Set (_Gₛ, _Gₑ)
 computeWinningRegion game =
   let game' = player1Turn game
       game'' = player0Turn game'
@@ -251,13 +249,19 @@ computeWinningRegion game =
     -- If there are no outgoing transitions turn the current state to a bottom
     -- Remove transitions that lead to bottom
     -- Remove states that lead to bottom
+    player1Turn :: forall _G₀ _G₁ label action. (Ord _G₀, Ord _G₁, Ord label, Ord action) => Game _G₀ _G₁ label action -> Game _G₀ _G₁ label action
     player1Turn game =
-      let (newTransitions, removedTransitions) = Set.partition (\(_, _, player0State) -> Set.member game._G₀ player0State) game.δ₁
-          player0StatesToRemove = (fst <$> removedTransitions) `Set.difference` (fst <$> newTransitions)
+      let (newTransitions, removedTransitions) = Set.partition (\(_, _, player0State) -> Set.member player0State game._G₀) game.δ₁
+          player0StatesToRemove = ((\(_, _, s) -> s) `Set.map` removedTransitions) `Set.difference` ((\(_, _, s) -> s) `Set.map` newTransitions)
           newStates = game._G₀ `Set.difference` player0StatesToRemove
-       in game {δ₀ = newTransitions, _G₀ = newStates}
+       in game {δ₁ = newTransitions, _G₀ = newStates}
 
-    player0Turn game = undefined -- game.δ₀
+    player0Turn :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Game _Gₛ _Gₑ label action
+    player0Turn game =
+      let (newTransitions, removedTransitions) = Set.partition (\(_, _, player1State) -> Set.member player1State game._G₁) game.δ₀
+          player1StatesToRemove = ((\(_, _, s) -> s) `Set.map` removedTransitions) `Set.difference` ((\(_, _, s) -> s) `Set.map` newTransitions)
+          newStates = game._G₁ `Set.difference` player1StatesToRemove
+       in game {δ₀ = newTransitions, _G₁ = newStates}
 
 -- Based on LLM generated one if we want something more efficent
 -- computeWinningRegion2 :: forall _Gₛ _Gₑ label action. (Ord _Gₛ, Ord _Gₑ, Ord label, Ord action) => Game _Gₛ _Gₑ label action -> Set (_Gₛ, _Gₑ)
@@ -278,9 +282,9 @@ type L = Set Prop
 -- watertankL :: L
 -- watertankL = Set.fromList ["level < 1", "1 ≤ level ≤ 99", "level > 99"]
 
-
 -- Actions are just {open, close}
 data WatertankA = OpenAction | CloseAction deriving (Show, Eq, Ord, Enum, Bounded)
+
 data WatertankL = LevelLessThan99 | LevelBetween1And99 | LevelGreaterThan1 deriving (Show, Eq, Ord, Enum, Bounded)
 
 -- AP seems to equal Action | Labels
@@ -322,10 +326,8 @@ data WatertankQₘ = WatertankQ₀ | WatertankQ₁ | WatertankQ₂ deriving (Sho
 watertankPreemptiveShield :: S WatertankL WatertankA (Set WatertankA) (Qₛ, WatertankQₘ)
 watertankPreemptiveShield = computePreemptiveShield watertankφˢ watertankφᵐ
 
-
 -- | Arbiter example from the shortened paper
 -- This seems to be a request based system where you can request A or B
-
 data ArbiterΣᵢ = RequestARequestB | DenyARequestB | RequestADenyB | DenyADenyB deriving (Show, Eq, Ord, Enum, Bounded)
 
 data ArbiterΣₒ = GrantedAGrantedB | DeniedAGrantedB | GrantedADeniedB | DeniedADeniedB deriving (Show, Eq, Ord, Enum, Bounded)
