@@ -1,10 +1,15 @@
--- | Implementations of infinite games
+-- | Implementations of Infinite Games Lecture Notes https://finkbeiner.groups.cispa.de/teaching/infinite-games-16/lecture-notes.pdf
 
 module InfiniteGames where
 
 import Data.Set
-import Data.Text
 import qualified Data.Set as Set
+import Data.GraphViz.Types.Graph
+import Data.Text (Text)
+import qualified Data.Text as Text
+import Data.GraphViz.Printing (renderDot)
+import Data.GraphViz (PrintDot(toDot))
+import System.Process (createProcess, proc)
 
 data PlayerVertex _V0 _V1 = Player0Vertex _V0 | Player1Vertex _V1 deriving (Show, Eq, Ord)
 
@@ -78,7 +83,16 @@ _R = fromList [Player1Vertex V4, Player1Vertex V5]
 sumTypeToSet :: (Ord a, Enum a, Bounded a) => Set a
 sumTypeToSet = Set.fromList [minBound .. maxBound]
 
--- ex1 = mkGraph [ (1,"one")
---               , (3,"three")
---               ]
---               [ (1,3,"edge label") ]
+arenaToDot :: (Show _V0, Show _V1) => Arena _V0 _V1 -> DotGraph Text
+arenaToDot (Arena _V _V0 _V1 _E) = mkGraph
+  (Set.toList $ Set.map (\v -> DotNode (Text.pack $ show v) []) _V)
+  (Set.toList $ Set.map (\(v1, v2) -> DotEdge (Text.pack $ show v1) (Text.pack $ show v2) []) _E)
+
+makeDotFile :: IO ()
+makeDotFile = do
+  writeFile "example.dot" (show $ renderDot $ toDot $  arenaToDot exampleArena)
+  putStrLn "Dot file created at arena.dot. Attempting to render with graphviz..."
+  _ <- createProcess (proc "dot" ["-Tpng", "arena.dot", "-o", "arena.png"])
+  putStrLn "Graphviz rendered arena.png. Attempting to open the file with default viewer..."
+  _ <- createProcess (proc "open" ["arena.png"])
+  pure ()

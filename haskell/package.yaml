@@ -23,6 +23,7 @@ dependencies:
 - base >= 4.7 && < 5
 - containers
 - graphviz
+- process
 - text
 - z3
 
@@ -46,6 +47,7 @@ default-extensions:
 - TypeApplications
 - BlockArguments
 - DuplicateRecordFields
+- OverloadedStrings
 
 library:
   source-dirs: src

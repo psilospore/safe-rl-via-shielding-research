@@ -43,11 +43,13 @@ library
       TypeApplications
       BlockArguments
       DuplicateRecordFields
+      OverloadedStrings
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
     , containers
     , graphviz
+    , process
     , text
     , z3
   default-language: Haskell2010
@@ -69,12 +71,14 @@ executable haskell-exe
       TypeApplications
       BlockArguments
       DuplicateRecordFields
+      OverloadedStrings
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , containers
     , graphviz
     , haskell
+    , process
     , text
     , z3
   default-language: Haskell2010
@@ -97,12 +101,14 @@ test-suite haskell-test
       TypeApplications
       BlockArguments
       DuplicateRecordFields
+      OverloadedStrings
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , containers
     , graphviz
     , haskell
+    , process
     , text
     , z3
   default-language: Haskell2010
