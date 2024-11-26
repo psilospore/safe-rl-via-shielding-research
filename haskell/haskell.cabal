@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      InfiniteGames
       ShieldingV1
       ShieldingV2
   other-modules:
@@ -39,10 +40,15 @@ library
       DataKinds
       LambdaCase
       BlockArguments
+      TypeApplications
+      BlockArguments
+      DuplicateRecordFields
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
     , containers
+    , graphviz
+    , text
     , z3
   default-language: Haskell2010
 
@@ -60,11 +66,16 @@ executable haskell-exe
       DataKinds
       LambdaCase
       BlockArguments
+      TypeApplications
+      BlockArguments
+      DuplicateRecordFields
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , containers
+    , graphviz
     , haskell
+    , text
     , z3
   default-language: Haskell2010
 
@@ -83,10 +94,15 @@ test-suite haskell-test
       DataKinds
       LambdaCase
       BlockArguments
+      TypeApplications
+      BlockArguments
+      DuplicateRecordFields
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , containers
+    , graphviz
     , haskell
+    , text
     , z3
   default-language: Haskell2010

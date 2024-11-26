@@ -22,6 +22,8 @@ description:         Please see the README on GitHub at <https://github.com/gith
 dependencies:
 - base >= 4.7 && < 5
 - containers
+- graphviz
+- text
 - z3
 
 ghc-options:
@@ -41,6 +43,9 @@ default-extensions:
 - DataKinds
 - LambdaCase
 - BlockArguments
+- TypeApplications
+- BlockArguments
+- DuplicateRecordFields
 
 library:
   source-dirs: src
