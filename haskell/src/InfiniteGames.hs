@@ -10,6 +10,7 @@ import qualified Data.Text as Text
 import Data.GraphViz.Printing (renderDot)
 import Data.GraphViz (PrintDot(toDot))
 import System.Process (createProcess, proc)
+import qualified Data.Text.Lazy.IO as TextIO
 
 data PlayerVertex _V0 _V1 = Player0Vertex _V0 | Player1Vertex _V1 deriving (Show, Eq, Ord)
 
@@ -90,9 +91,9 @@ arenaToDot (Arena _V _V0 _V1 _E) = mkGraph
 
 makeDotFile :: IO ()
 makeDotFile = do
-  writeFile "example.dot" (show $ renderDot $ toDot $  arenaToDot exampleArena)
+  TextIO.writeFile "./arena.dot" ( renderDot $ toDot $  arenaToDot exampleArena)
   putStrLn "Dot file created at arena.dot. Attempting to render with graphviz..."
   _ <- createProcess (proc "dot" ["-Tpng", "arena.dot", "-o", "arena.png"])
   putStrLn "Graphviz rendered arena.png. Attempting to open the file with default viewer..."
-  _ <- createProcess (proc "open" ["arena.png"])
+  _ <- createProcess (proc "open" ["./arena.png"])
   pure ()
