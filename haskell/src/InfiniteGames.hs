@@ -36,10 +36,12 @@ data Arena _V0 _V1 = Arena
 -- Definition 2.3 (Play) A play in an arena is an infinite sequence of vertices rho = v_0, v_1, ... \in V^\omega
 type Rho _V0 _V1 = [PlayerVertex _V0 _V1]
 
-vertexOwnedByPlayer :: PlayerVertex _V0 _V1 -> Player -> Bool
-vertexOwnedByPlayer (Player0Vertex _) Player0 = True
-vertexOwnedByPlayer (Player1Vertex _) Player1 = True
-vertexOwnedByPlayer _ _ = False
+-- Definition 2.7 A Game G=(A, Win) where A is an arena and Win set of winning sequences
+-- The Win condition could be Reach(R) or Safe(S) for Reachability or Safety games respectably
+
+-- Definition 2.9 Winning Region W_i(G) of player i is just the set of vertices that has a winning strategy (always leads to a win)
+
+-- 3.1 A Reachbability Game G=(A, Reach(R)) where R is a set of vertices to eventually be reached
 
 -- Construction 3.1 Controlled Predecessor CPre_i(R)
 cPre :: (Ord _V0) => (Ord _V1) => Arena _V0 _V1 -> V _V0 _V1 -> Player -> Set (PlayerVertex _V0 _V1)
@@ -55,6 +57,11 @@ cPre a r player = Map.keysSet $
 -- Values are all the outgoing vertices
 mkOutgoingEdgeMap :: Set (PlayerVertex _V0 _V1) -> Map (PlayerVertex _V0 _V1) (Set (PlayerVertex _V0 _V1))
 mkOutgoingEdgeMap = undefined
+
+vertexOwnedByPlayer :: PlayerVertex _V0 _V1 -> Player -> Bool
+vertexOwnedByPlayer (Player0Vertex _) Player0 = True
+vertexOwnedByPlayer (Player1Vertex _) Player1 = True
+vertexOwnedByPlayer _ _ = False
 
 -- The i-attractor Attr_i(R) for R in A is just applying CPre until n
 -- n >= |V| I think
@@ -82,7 +89,6 @@ dualArena (Arena v v0 v1 e) = Arena (Set.map swap v) v1 v0 (Set.map (bimap swap 
   where
     swap (Player0Vertex p0V) = Player1Vertex p0V
     swap (Player1Vertex p1V) = Player0Vertex p1V
-
 
 -- Examples --
 
