@@ -73,12 +73,21 @@ attr a r player = go r
       let r'' = cPre a r' player
        in if r'' == r' then r' else go $ r'' `Set.union` r'
 
+-- The W_0(G) = Attr_0(R) the winning region for player 0 is attr A R Player0
+-- W_1(G) = V / Attr_0(G) the complement of the above
+
 -- 3.2 Safety Games G=(A, Safety(S)) where S is a set of safe verties
 -- Reachablity games Player's 0 goal is to reach R
 -- Safety games Player's 0 goal is to stay in S forever
 -- Reachability games Player's 1 goal is to stay in V \ R forever
 -- Safety games Player 1's goal is to to reach V \ S
 -- Safety games are the duals of Reachability games
+
+reachabilityGame :: (Ord _V0) => (Ord _V1) => Arena _V0 _V1 -> V _V0 _V1 -> Player -> Set (PlayerVertex _V0 _V1)
+reachabilityGame a r player = let w_0 = attr a r player in
+  case player of
+    Player0 -> w_0
+    Player1 -> a._V \\ w_0
 
 -- Def 3.3 Dual of an Arena where we swap who owns the vertices
 -- Also if the Game G=(A, Win) then the dual game is G'=(A', V^omega \ Win) where A' is the dual arena
@@ -89,6 +98,8 @@ dualArena (Arena v v0 v1 e) = Arena (Set.map swap v) v1 v0 (Set.map (bimap swap 
   where
     swap (Player0Vertex p0V) = Player1Vertex p0V
     swap (Player1Vertex p1V) = Player0Vertex p1V
+
+safetyGame = undefined
 
 -- Examples --
 
