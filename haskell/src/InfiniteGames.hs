@@ -13,10 +13,19 @@ import System.Process (createProcess, proc)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Bifunctor (Bifunctor(..))
+import Data.GraphViz.Attributes.Complete
+import Data.GraphViz.Attributes (X11Color(..))
+import qualified Debug.Trace as Debug
+import Data.GraphViz (filled)
+
+debug = False
+
+trace = if debug then Debug.trace else id
 
 -- From Infinite Games Lecture Notes https://people.cs.aau.dk/~mzi/teaching/lecture-notes%20infinite%20games.pdf
 
 data Player = Player0 | Player1 deriving (Show, Eq, Ord)
+
 
 data PlayerVertex _V0 _V1 = Player0Vertex _V0 | Player1Vertex _V1 deriving (Show, Eq, Ord)
 
@@ -32,6 +41,7 @@ data Arena _V0 _V1 = Arena
     _E :: Set (PlayerVertex _V0 _V1, PlayerVertex _V0 _V1)
   }
   deriving (Show, Eq, Ord)
+
 
 -- Definition 2.3 (Play) A play in an arena is an infinite sequence of vertices rho = v_0, v_1, ... \in V^\omega
 type Rho _V0 _V1 = [PlayerVertex _V0 _V1]
@@ -52,11 +62,11 @@ cPre a r player = Map.keysSet $
         else
           -- All edges need to lead to R
           all (`Set.member` r) targets
-      ) `Map.filterWithKey` mkOutgoingEdgeMap a._V
+      ) `Map.filterWithKey` mkOutgoingEdgeMap a._E
 
 -- Values are all the outgoing vertices
-mkOutgoingEdgeMap :: Set (PlayerVertex _V0 _V1) -> Map (PlayerVertex _V0 _V1) (Set (PlayerVertex _V0 _V1))
-mkOutgoingEdgeMap = undefined
+mkOutgoingEdgeMap :: (Ord _V0, Ord _V1) => Set (PlayerVertex _V0 _V1, PlayerVertex _V0 _V1) -> Map (PlayerVertex _V0 _V1) (Set (PlayerVertex _V0 _V1))
+mkOutgoingEdgeMap = Set.foldr (\(v1, v2) -> Map.insertWith Set.union v1 (Set.singleton v2)) Map.empty
 
 vertexOwnedByPlayer :: PlayerVertex _V0 _V1 -> Player -> Bool
 vertexOwnedByPlayer (Player0Vertex _) Player0 = True
@@ -66,12 +76,14 @@ vertexOwnedByPlayer _ _ = False
 -- The i-attractor Attr_i(R) for R in A is just applying CPre until n
 -- n >= |V| I think
 -- At some point it doesn't grow so we can stop early
-attr :: (Ord _V0) => (Ord _V1) => Arena _V0 _V1 -> V _V0 _V1 -> Player -> Set (PlayerVertex _V0 _V1)
+attr :: (Ord _V0, Show _V0, Show _V1) => (Ord _V1) => Arena _V0 _V1 -> V _V0 _V1 -> Player -> Set (PlayerVertex _V0 _V1)
 attr a r player = go r
   where
     go r' =
-      let r'' = cPre a r' player
-       in if r'' == r' then r' else go $ r'' `Set.union` r'
+      let r'' = r' `Set.union` cPre a r' player
+       in if r'' == r' then r' else
+        trace (show r' <> " " <> show r'') $
+        go r''
 
 -- The W_0(G) = Attr_0(R) the winning region for player 0 is attr A R Player0
 -- W_1(G) = V / Attr_0(G) the complement of the above
@@ -83,7 +95,7 @@ attr a r player = go r
 -- Safety games Player 1's goal is to to reach V \ S
 -- Safety games are the duals of Reachability games
 
-reachabilityGame :: (Ord _V0) => (Ord _V1) => Arena _V0 _V1 -> V _V0 _V1 -> Player -> Set (PlayerVertex _V0 _V1)
+reachabilityGame :: (Ord _V0, Show _V0, Show _V1) => (Ord _V1) => Arena _V0 _V1 -> V _V0 _V1 -> Player -> Set (PlayerVertex _V0 _V1)
 reachabilityGame a r player = let w_0 = attr a r player in
   case player of
     Player0 -> w_0
@@ -99,6 +111,7 @@ dualArena (Arena v v0 v1 e) = Arena (Set.map swap v) v1 v0 (Set.map (bimap swap 
     swap (Player0Vertex p0V) = Player1Vertex p0V
     swap (Player1Vertex p1V) = Player0Vertex p1V
 
+-- Exercise with Joe and Quinn
 safetyGame = undefined
 
 -- Examples --
@@ -155,24 +168,56 @@ _R = fromList [Player1Vertex V4, Player1Vertex V5]
 _S :: Set (PlayerVertex ExamplePlayer0Vertex ExamplePlayer1Vertex)
 _S = fromList [Player0Vertex V1, Player1Vertex V2, Player0Vertex V3, Player1Vertex V4, Player1Vertex V5, Player0Vertex V7, Player0Vertex V8]
 
-
-
-
 -- Turn a sum type into a Set of all possible values
 sumTypeToSet :: (Ord a, Enum a, Bounded a) => Set a
 sumTypeToSet = Set.fromList [minBound .. maxBound]
 
-arenaToDot :: (Show _V0, Show _V1) => Arena _V0 _V1 -> DotGraph Text
-arenaToDot (Arena _V _V0 _V1 _E) =
+-- Construct a DotGraph from an Arena
+-- Player 0 is circle
+-- Player 1 is square
+-- Player 0's winning regions is colored blue
+-- Player 1's winning regions is colored red
+-- The condition is doubly framed
+arenaToDot :: (Show _V0, Show _V1, Ord _V0, Ord _V1) => Arena _V0 _V1 -> Maybe (Set (PlayerVertex _V0 _V1), Set (PlayerVertex _V0 _V1)) -> DotGraph Text
+arenaToDot (Arena _V _V0 _V1 _E) regions =
   mkGraph
-    (Set.toList $ Set.map (\v -> DotNode (Text.pack $ show v) []) _V)
-    (Set.toList $ Set.map (\(v1, v2) -> DotEdge (Text.pack $ show v1) (Text.pack $ show v2) []) _E)
+    (Set.toList $ Set.map (\v -> DotNode (showVertex v) (playerAttrs v <> regionAttrs v regions)) _V)
+    (Set.toList $ Set.map (\(v1, v2) -> DotEdge (showVertex v1) (showVertex v2) []) _E)
+  where
+    showVertex (Player0Vertex v) = Text.pack $ show v
+    showVertex (Player1Vertex v) = Text.pack $ show v
+
+    playerAttrs (Player0Vertex _) = [Shape Circle]
+    playerAttrs (Player1Vertex _) = [Shape BoxShape]
+
+    regionAttrs v (Just (condition, winningRegion))
+      | v `Set.member` winningRegion = [FillColor $ [WC (X11Color SteelBlue) Nothing ], Style [filled]]
+      | not $ v `Set.member` winningRegion = [FillColor $ [WC (X11Color Tomato) Nothing ], Style [filled]]
+      | v `Set.member` condition = [Style [SItem Dashed []]]
+      | otherwise = []
+    regionAttrs _ Nothing = []
+
+
+addWinningRegion :: (Show _V0, Show _V1) => Set (PlayerVertex _V0 _V1) -> DotGraph Text -> DotGraph Text
+addWinningRegion w g = undefined
 
 makeDotFile :: IO ()
 makeDotFile = do
-  TextIO.writeFile "./arena.dot" (renderDot $ toDot $ arenaToDot exampleArena)
+  TextIO.writeFile "./arena.dot" (renderDot $ toDot $ arenaToDot exampleArena Nothing)
   putStrLn "Dot file created at arena.dot. Attempting to render with graphviz..."
   _ <- createProcess (proc "dot" ["-Tpng", "arena.dot", "-o", "arena.png"])
   putStrLn "Graphviz rendered arena.png. Attempting to open the file with default viewer..."
   _ <- createProcess (proc "open" ["./arena.png"])
+  pure ()
+
+makeReachabilityDotFile :: IO ()
+makeReachabilityDotFile = do
+  let
+    winningRegion = reachabilityGame exampleArena _R Player0
+    regions = Just (_R, winningRegion)
+  TextIO.writeFile "./reachabilityGame.dot" (renderDot $ toDot $ arenaToDot exampleArena regions)
+  putStrLn "Dot file created at reachabilityGame.dot. Attempting to render with graphviz..."
+  _ <- createProcess (proc "dot" ["-Tpng", "reachabilityGame.dot", "-o", "reachabilityGame.png"])
+  putStrLn "Graphviz rendered reachabilityGame.png. Attempting to open the file with default viewer..."
+  _ <- createProcess (proc "open" ["./reachabilityGame.png"])
   pure ()
