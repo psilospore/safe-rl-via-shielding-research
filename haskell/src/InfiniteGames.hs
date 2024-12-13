@@ -12,6 +12,7 @@ import qualified Data.Text.Lazy.IO as TextIO
 import System.Process (createProcess, proc)
 import qualified Data.Map as Map
 import Data.Map (Map)
+import Data.Bifunctor (Bifunctor(..))
 
 -- From Infinite Games Lecture Notes https://people.cs.aau.dk/~mzi/teaching/lecture-notes%20infinite%20games.pdf
 
@@ -63,8 +64,24 @@ attr a r player = go r
   where
     go r' =
       let r'' = cPre a r' player
-       in if r'' == r' then r' else go r''
+       in if r'' == r' then r' else go $ r'' `Set.union` r'
 
+-- 3.2 Safety Games G=(A, Safety(S)) where S is a set of safe verties
+-- Reachablity games Player's 0 goal is to reach R
+-- Safety games Player's 0 goal is to stay in S forever
+-- Reachability games Player's 1 goal is to stay in V \ R forever
+-- Safety games Player 1's goal is to to reach V \ S
+-- Safety games are the duals of Reachability games
+
+-- Def 3.3 Dual of an Arena where we swap who owns the vertices
+-- Also if the Game G=(A, Win) then the dual game is G'=(A', V^omega \ Win) where A' is the dual arena
+-- Given the Arena A=(V,V_0, V_1, E), the dual Arena A', the safety game G=(A, Safety(S)), and we have a dual game G'=(A', Reach(V\S))
+-- Then W_i(G) = W_{1-i}(G')
+dualArena :: (Ord _V1, Ord _V0) => Arena _V0 _V1 -> Arena _V1 _V0
+dualArena (Arena v v0 v1 e) = Arena (Set.map swap v) v1 v0 (Set.map (bimap swap swap) e)
+  where
+    swap (Player0Vertex p0V) = Player1Vertex p0V
+    swap (Player1Vertex p1V) = Player0Vertex p1V
 
 
 -- Examples --
@@ -113,6 +130,16 @@ exampleArena =
 -- Example reachability set v_4 and V_5
 _R :: Set (PlayerVertex ExamplePlayer0Vertex ExamplePlayer1Vertex)
 _R = fromList [Player1Vertex V4, Player1Vertex V5]
+
+-- Safety Game
+-- Safety games are the duals of Reachability games
+
+-- Example safety set
+_S :: Set (PlayerVertex ExamplePlayer0Vertex ExamplePlayer1Vertex)
+_S = fromList [Player0Vertex V1, Player1Vertex V2, Player0Vertex V3, Player1Vertex V4, Player1Vertex V5, Player0Vertex V7, Player0Vertex V8]
+
+
+
 
 -- Turn a sum type into a Set of all possible values
 sumTypeToSet :: (Ord a, Enum a, Bounded a) => Set a
