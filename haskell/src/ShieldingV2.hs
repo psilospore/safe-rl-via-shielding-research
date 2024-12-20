@@ -293,7 +293,7 @@ data WatertankL = LevelLessThan99 | LevelBetween1And99 | LevelGreaterThan1 deriv
 
 watertankφ :: LTL WatertankL WatertankA
 watertankφ = G (APᵢ LevelGreaterThan1) &&& G (APᵢ LevelLessThan99)
-   &&& G ((AP₀ OpenAction &&& X (AP₀ OpenAction)) --> (X (X (AP₀ CloseAction)) &&& X (X $ X (AP₀ CloseAction))))
+   &&& G ((AP₀ OpenAction &&& X (AP₀ CloseAction)) --> (X (X (AP₀ CloseAction)) &&& X (X $ X (AP₀ CloseAction))))
 
 -- Output from Safety Automaton is an action
 watertankφˢ :: SafetyAutomaton WatertankL WatertankA

@@ -1,7 +1,7 @@
 -- | Implementations of Infinite Games Lecture Notes https://finkbeiner.groups.cispa.de/teaching/infinite-games-16/lecture-notes.pdf
 module InfiniteGames where
 
-import Data.GraphViz (PrintDot (toDot))
+import Data.GraphViz ( PrintDot(toDot), filled )
 import Data.GraphViz.Printing (renderDot)
 import Data.GraphViz.Types.Graph
 import Data.Set
@@ -16,16 +16,16 @@ import Data.Bifunctor (Bifunctor(..))
 import Data.GraphViz.Attributes.Complete
 import Data.GraphViz.Attributes (X11Color(..))
 import qualified Debug.Trace as Debug
-import Data.GraphViz (filled)
 
-debug = False
+debug :: Bool
+debug = True
 
-trace = if debug then Debug.trace else id
+trace :: String -> a -> a
+trace str = if debug then Debug.trace str else id
 
 -- From Infinite Games Lecture Notes https://people.cs.aau.dk/~mzi/teaching/lecture-notes%20infinite%20games.pdf
 
 data Player = Player0 | Player1 deriving (Show, Eq, Ord)
-
 
 data PlayerVertex _V0 _V1 = Player0Vertex _V0 | Player1Vertex _V1 deriving (Show, Eq, Ord)
 
@@ -112,7 +112,23 @@ dualArena (Arena v v0 v1 e) = Arena (Set.map swap v) v1 v0 (Set.map (bimap swap 
     swap (Player1Vertex p1V) = Player0Vertex p1V
 
 -- Exercise with Joe and Quinn
-safetyGame = undefined
+safetyGame :: (Ord _V0, Show _V0, Show _V1) => (Ord _V1) => Arena _V0 _V1 -> V _V0 _V1 -> Player -> Set (PlayerVertex _V0 _V1)
+safetyGame a s player =
+  let dualArena' = dualArena a
+      dualPlayer = case player of
+        Player0 -> Player1
+        Player1 -> Player0
+      r = (\case
+                          Player0Vertex v -> Player1Vertex v
+                          Player1Vertex v -> Player0Vertex v
+                      ) `Set.map` (a._V \\ s)
+      dualWinningRegion = reachabilityGame dualArena' r dualPlayer
+      winningRegion = (\case
+                          Player0Vertex v -> Player1Vertex v
+                          Player1Vertex v -> Player0Vertex v
+                      ) `Set.map` dualWinningRegion
+  in
+    winningRegion
 
 -- Examples --
 
@@ -220,4 +236,16 @@ makeReachabilityDotFile = do
   _ <- createProcess (proc "dot" ["-Tpng", "reachabilityGame.dot", "-o", "reachabilityGame.png"])
   putStrLn "Graphviz rendered reachabilityGame.png. Attempting to open the file with default viewer..."
   _ <- createProcess (proc "open" ["./reachabilityGame.png"])
+  pure ()
+
+makeSafetyDotFile :: IO ()
+makeSafetyDotFile = do
+  let
+    winningRegion = safetyGame exampleArena _S Player0
+    regions = Just (_S, winningRegion)
+  TextIO.writeFile "./safetyGame.dot" (renderDot $ toDot $ arenaToDot exampleArena regions)
+  putStrLn "Dot file created at safetyGame.dot. Attempting to render with graphviz..."
+  _ <- createProcess (proc "dot" ["-Tpng", "safetyGame.dot", "-o", "safetyGame.png"])
+  putStrLn "Graphviz rendered safetyGame.png. Attempting to open the file with default viewer..."
+  _ <- createProcess (proc "open" ["./safetyGame.png"])
   pure ()
