@@ -76,6 +76,7 @@ data MDPAbstraction _Σᵢ¹ _Σᵢ² _Q = MDPAbstraction {
   , _F :: Set _Q
 }
 
+-- ltlToAutomaton :: forall _APᵢ _AP₀ _Σᵢ _Σₒ. LTL _APᵢ _AP₀ -> SafetyAutomaton _Σᵢ _Σₒ
 
 -- | Convert an LTL formula to a Safety Automaton
 -- TODO this is LLM generated might be incorrect

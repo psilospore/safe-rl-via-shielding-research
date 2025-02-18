@@ -24,6 +24,7 @@ dependencies:
 - containers
 - graphviz
 - process
+- megaparsec
 - text
 - z3
 

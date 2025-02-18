@@ -25,7 +25,9 @@ source-repository head
 
 library
   exposed-modules:
+      HaskellHOAFParser
       InfiniteGames
+      LtlToAutomaton
       ShieldingV1
       ShieldingV2
   other-modules:
@@ -49,6 +51,7 @@ library
       base >=4.7 && <5
     , containers
     , graphviz
+    , megaparsec
     , process
     , text
     , z3
@@ -78,6 +81,7 @@ executable haskell-exe
     , containers
     , graphviz
     , haskell
+    , megaparsec
     , process
     , text
     , z3
@@ -108,6 +112,7 @@ test-suite haskell-test
     , containers
     , graphviz
     , haskell
+    , megaparsec
     , process
     , text
     , z3
