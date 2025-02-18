@@ -26,7 +26,7 @@ dependencies:
 - process
 - megaparsec
 - text
-- z3
+# - z3
 
 ghc-options:
 - -Wall
@@ -49,6 +49,7 @@ default-extensions:
 - BlockArguments
 - DuplicateRecordFields
 - OverloadedStrings
+- PartialTypeSignatures
 
 library:
   source-dirs: src

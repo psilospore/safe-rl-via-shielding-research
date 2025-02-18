@@ -223,7 +223,7 @@ makeDotFile = do
   putStrLn "Dot file created at arena.dot. Attempting to render with graphviz..."
   _ <- createProcess (proc "dot" ["-Tpng", "arena.dot", "-o", "arena.png"])
   putStrLn "Graphviz rendered arena.png. Attempting to open the file with default viewer..."
-  _ <- createProcess (proc "open" ["./arena.png"])
+  _ <- createProcess (proc "xdg-open" ["./arena.png"])
   pure ()
 
 makeReachabilityDotFile :: IO ()

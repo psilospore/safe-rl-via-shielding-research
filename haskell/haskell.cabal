@@ -46,6 +46,7 @@ library
       BlockArguments
       DuplicateRecordFields
       OverloadedStrings
+      PartialTypeSignatures
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
@@ -54,7 +55,6 @@ library
     , megaparsec
     , process
     , text
-    , z3
   default-language: Haskell2010
 
 executable haskell-exe
@@ -75,6 +75,7 @@ executable haskell-exe
       BlockArguments
       DuplicateRecordFields
       OverloadedStrings
+      PartialTypeSignatures
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
@@ -84,7 +85,6 @@ executable haskell-exe
     , megaparsec
     , process
     , text
-    , z3
   default-language: Haskell2010
 
 test-suite haskell-test
@@ -106,6 +106,7 @@ test-suite haskell-test
       BlockArguments
       DuplicateRecordFields
       OverloadedStrings
+      PartialTypeSignatures
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
@@ -115,5 +116,4 @@ test-suite haskell-test
     , megaparsec
     , process
     , text
-    , z3
   default-language: Haskell2010
