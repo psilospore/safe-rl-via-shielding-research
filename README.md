@@ -1,13 +1,4 @@
-# shieldpy
+# safe-rl-via-shielding
 
-Describe your project here.
+Codebase for shielding research
 
-## develop
-
-https://rye.astral.sh/
-
-```sh
-rye sync
-rye build
-rye test
-```
